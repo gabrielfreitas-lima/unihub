@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UniHub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-row">
+      <div class="brand"><span class="brand-short">U</span><span class="brand-full">UniHub</span></div>
+      <!-- Só com o menu à esquerda: deixa o menu aberto (fixo) ou recolhido. -->
+      <button id="pin-btn" class="pin-btn" hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path fill="currentColor" d="M15 3l6 6-2 1-3 3 .5 4.5L15 19l-4-4-5 5-1-1 5-5-4-4 1.5-1.5L12 9l3-3 1-2z"/>
+        </svg>
+      </button>
+    </div>
+    <nav id="tabs" class="tabs" role="tablist"></nav>
+    <div class="top-actions">
+    <button id="theme-btn" class="btn secondary icon-btn" aria-label="Temas" aria-haspopup="menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path fill="currentColor" d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3Zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/>
+      </svg>
+      <span class="btn-label">Temas</span>
+    </button>
+    <button id="settings-btn" class="btn secondary icon-btn" aria-label="Configurações">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/>
+      </svg>
+      <!-- Só com o menu à esquerda e aberto. -->
+      <span class="btn-label">Configurações</span>
+    </button>
+    </div>
+  </header>
+  <!-- Com o menu à esquerda: faixa de cima para arrastar a janela e os botões dela. -->
+  <div class="drag-strip" aria-hidden="true"><div class="drag-area"></div></div>
+  <main id="view"></main>
+  <dialog id="hub-dialog" class="hub-dialog"></dialog>
+  <dialog id="settings-dialog" class="hub-dialog settings-dialog"></dialog>
+  <div id="theme-menu" class="theme-menu" role="menu" aria-label="Temas" hidden></div>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
