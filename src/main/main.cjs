@@ -63,8 +63,8 @@ function setupHidPermissions() {
 // menuPosition: cabeçalho em cima ('top') ou menu à esquerda ('left');
 // menuPinned: com o menu à esquerda, fica aberto (true) ou recolhido (false);
 // theme: cores do app (botão Temas).
-const DEFAULT_SETTINGS = { autoStart: false, tray: false, menuPosition: 'top', menuPinned: true, theme: 'graphite' };
-const ALLOWED_VALUES = { menuPosition: ['top', 'left'], theme: ['light', 'dark', 'graphite'] };
+const DEFAULT_SETTINGS = { autoStart: false, tray: false, menuPosition: 'top', menuPinned: true, theme: 'graphite', language: 'pt' };
+const ALLOWED_VALUES = { menuPosition: ['top', 'left'], theme: ['light', 'dark', 'graphite'], language: ['pt', 'en', 'es'] };
 
 // Cores da janela em cada tema (as mesmas do styles.css): fundo ao abrir e a
 // faixa dos botões minimizar/maximizar/fechar, que o Windows desenha.
@@ -111,15 +111,27 @@ function showWindow() {
   mainWindow.focus();
 }
 
+// Textos do menu da bandeja, que fica fora da página.
+const TRAY_TEXT = {
+  pt: { open: 'Abrir o UniHub', quit: 'Sair' },
+  en: { open: 'Open UniHub', quit: 'Quit' },
+  es: { open: 'Abrir UniHub', quit: 'Salir' },
+};
+
+function applyTrayMenu() {
+  const text = TRAY_TEXT[settings.language] || TRAY_TEXT.pt;
+  tray?.setContextMenu(Menu.buildFromTemplate([
+    { label: text.open, click: showWindow },
+    { type: 'separator' },
+    { label: text.quit, click: () => { quitting = true; app.quit(); } },
+  ]));
+}
+
 function applyTray(enabled) {
   if (enabled && !tray) {
     tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')));
     tray.setToolTip('UniHub');
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Abrir o UniHub', click: showWindow },
-      { type: 'separator' },
-      { label: 'Sair', click: () => { quitting = true; app.quit(); } },
-    ]));
+    applyTrayMenu();
     tray.on('click', showWindow);
   } else if (!enabled && tray) {
     tray.destroy();
@@ -155,6 +167,7 @@ ipcMain.handle('settings:set', (_event, key, value) => {
     }
   }
   if (key === 'tray') applyTray(value);
+  if (key === 'language') applyTrayMenu();
   if (key === 'theme') applyTheme();
   try {
     fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });

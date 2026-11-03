@@ -10,6 +10,7 @@ import { HidManager, describe } from './core/hid-manager.js';
 import { Extensions } from './core/extensions.js';
 import { plugins } from './frontend/index.js';
 import { batteryLevel } from './shared/battery.js';
+import { LANGUAGES, DEFAULT_LANGUAGE, getLanguage, setLanguage, startTranslating } from './core/i18n.js';
 
 const STATUS_LABEL = { beta: 'beta', planned: 'em breve', tool: 'ferramenta' };
 
@@ -391,13 +392,26 @@ function renderSettings(settings) {
               onclick: async () => redraw(applyMenuLayout(await saveSetting('menuPosition', value) || settings)),
             }, text))))),
       h('div', { class: 'settings-col' },
-        // "Adicionar aba" mora aqui: abre a janela Abas.
+        // Abre a janela Abas.
         settingsGroup('Abas',
-          h('p', { class: 'settings-text' }, 'Aqui você adiciona outras abas compatíveis com o UniHub. Cada aba adicionada aparece no menu.'),
-          h('div', { class: 'row' }, button('Adicionar aba', () => {
-            settingsDialog.close();
-            openDialog();
-          }))))),
+          h('div', { class: 'setting-row' },
+            h('span', { class: 'setting-text' },
+              h('span', {}, 'Abas do menu'),
+              h('small', { class: 'muted' }, 'Escolha os tipos de aparelho que aparecem no menu, como Gamepads, Headsets e Teclados.')),
+            button('Gerenciar abas', () => {
+              settingsDialog.close();
+              openDialog();
+            }))),
+        settingsGroup('Idiomas',
+          h('div', { class: 'segmented', role: 'group', 'aria-label': 'Idiomas' },
+            LANGUAGES.map(({ id, name }) => h('button', {
+              class: 'btn' + (getLanguage() === id ? ' primary' : ' secondary'),
+              'aria-pressed': String(getLanguage() === id),
+              onclick: async () => {
+                applyLanguage(await saveSetting('language', id) || { language: id });
+                redraw(await window.unihub?.getSettings?.() || settings);
+              },
+            }, name)))))),
     h('div', { class: 'settings-foot' },
       button('Fechar', () => settingsDialog.close())));
 }
@@ -406,6 +420,12 @@ function renderSettings(settings) {
 
 const pinBtn = document.getElementById('pin-btn');
 let layout = { menuPosition: 'top', menuPinned: true };
+
+function applyLanguage(settings) {
+  setLanguage(settings.language || DEFAULT_LANGUAGE);
+  fitMenuWidth(); // os nomes das abas mudam de tamanho
+  return settings;
+}
 
 async function saveSetting(key, value) {
   return window.unihub?.setSetting?.(key, value).catch(() => null);
@@ -525,7 +545,8 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('resize', closeThemeMenu);
 
-window.unihub?.getSettings?.().then(applyTheme).then(applyMenuLayout).catch(() => {})
+startTranslating();
+window.unihub?.getSettings?.().then(applyLanguage).then(applyTheme).then(applyMenuLayout).catch(() => {})
   // A queda do botão Temas só anima depois de abrir o app, não ao carregar.
   .finally(() => setTimeout(() => document.body.classList.add('menu-ready'), 200));
 

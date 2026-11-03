@@ -2,6 +2,7 @@
 // bateria baixa. Usado pelas abas de qualquer marca.
 
 import { h } from '../core/dom.js';
+import { translate } from '../core/i18n.js';
 import { formatAge, batteryLevel } from './battery.js';
 
 const STALE_AFTER_MS = 60_000; // depois disso, mostra "há X min" ao lado da bateria
@@ -51,6 +52,6 @@ export function warnLowBattery(ctx, text) {
   ctx.toast(text, 'error');
   if (!document.hasFocus() && 'Notification' in window && Notification.permission !== 'denied') {
     // Fica na tela até ser fechada: durante um jogo, um aviso rápido passaria despercebido.
-    try { new Notification('Bateria baixa', { body: text, silent: false, requireInteraction: true }); } catch { /* sem notificação */ }
+    try { new Notification(translate('Bateria baixa'), { body: translate(text), silent: false, requireInteraction: true }); } catch { /* sem notificação */ }
   }
 }
