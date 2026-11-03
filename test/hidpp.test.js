@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SHORT, LONG, request, isReplyTo, payload, root, decodeName, parseUnifiedBattery, HidppError,
-} from '../src/renderer/plugins/logitech/hidpp.js';
+} from '../src/renderer/plugins/headsets/logitech/hidpp.js';
 
 test('requisição curta e longa têm o tamanho certo', () => {
   const s = root.ping(SHORT, 0xff);

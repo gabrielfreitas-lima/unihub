@@ -12,7 +12,7 @@
 //   Com o cabo ligado, o receptor do mesmo teclado fica de fora (o teclado usa
 //   o cabo), como o dongle dos headsets.
 
-import { isAulaWired, isAulaReceiver } from '../aula/devices.js';
+import { isAulaWired, isAulaReceiver } from './aula/devices.js';
 
 const GENERIC_DESKTOP = 0x01;
 const MOUSE = 0x02;

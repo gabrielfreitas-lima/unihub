@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   parseLightBlock, buildLightBlock, changedRange, applyPreset, moveFrame,
   PRESETS, LED_LAYOUTS, LIGHT_BLOCK_SIZE, MAX_KEYFRAMES,
-} from '../src/renderer/plugins/gamesir/lights.js';
+} from '../src/renderer/plugins/gamepads/gamesir/lights.js';
 
 // Bloco lido de um Cyclone 2 real, configurado com: animação I ativa,
 // 1 quadro, brilho 100, velocidade 1, luzes 2 e 4 brancas, áudio desligado,

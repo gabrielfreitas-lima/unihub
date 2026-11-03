@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifySystemKeyboard, systemKeyboards } from '../src/renderer/plugins/keyboards/detect.js';
+import { classifySystemKeyboard, systemKeyboards } from '../src/renderer/plugins/teclados/detect.js';
 
 // Formatos de ID do Windows para teclados.
 const BT_CLASSIC = {

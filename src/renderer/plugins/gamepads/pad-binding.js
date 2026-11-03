@@ -26,6 +26,16 @@ export function snapshot(pad) {
   };
 }
 
+/**
+ * O gamepad pode ser deste aparelho? Compara o VID:PID que a Gamepad API põe no
+ * id ("... Vendor: 054c Product: 09cc)"). Sem essa informação no id, não descarta.
+ */
+export function padMatchesDevice(pad, device) {
+  const ids = /vendor:\s*([0-9a-f]{4})\s+product:\s*([0-9a-f]{4})/i.exec(pad.id);
+  if (!ids) return true;
+  return parseInt(ids[1], 16) === device.vendorId && parseInt(ids[2], 16) === device.productId;
+}
+
 export class PadBinder {
   constructor() {
     this.last = new Map(); // pad.index -> snapshot

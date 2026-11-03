@@ -7,17 +7,17 @@
 
 import { h, clear, subTabs, card } from '../../core/dom.js';
 import { describe, deviceId } from '../../core/hid-manager.js';
-import { gamepadVisualTester } from '../../shared/gamepad-visual.js';
-import { disconnectedController, controllerSvg } from '../../shared/controller-art.js';
+import { gamepadVisualTester, GAMESIR_EXTRA_INDEX } from '../../shared/gamepad-visual.js';
+import { disconnectedController, controllerSvg, sonyControllerIcon, proControllerIcon, xboxControllerIcon } from '../../shared/controller-art.js';
 import { infoCard, vidPidRow } from '../../shared/info-card.js';
-import { VENDOR_ID as GAMESIR_VID, CONFIG_USAGE_PAGE } from '../gamesir/protocol.js';
-import { GameSirSession } from '../gamesir/session.js';
-import { resolveNames, splitDongles, modelFor, isDongle } from '../gamesir/names.js';
-import { lightsTab } from '../gamesir/lights-tab.js';
-import { vibrationTab } from '../gamesir/vibration-tab.js';
-import { deviceTab, profilesTab } from '../gamesir/tabs.js';
-import { isGamepadInterface, GAMEPAD_FILTERS, brandOf, genericName } from './brands.js';
-import { PadBinder } from './pad-binding.js';
+import { VENDOR_ID as GAMESIR_VID, CONFIG_USAGE_PAGE, extraButtonsPressed } from '../../plugins/gamepads/gamesir/protocol.js';
+import { GameSirSession } from '../../plugins/gamepads/gamesir/session.js';
+import { resolveNames, splitDongles, modelFor, isDongle } from '../../plugins/gamepads/gamesir/names.js';
+import { lightsTab } from './gamesir/lights-tab.js';
+import { vibrationTab } from './gamesir/vibration-tab.js';
+import { deviceTab, profilesTab } from './gamesir/tabs.js';
+import { isGamepadInterface, GAMEPAD_FILTERS, brandOf, genericName, isProControllerDevice, isXboxDevice } from '../../plugins/gamepads/brands.js';
+import { PadBinder, padMatchesDevice } from '../../plugins/gamepads/pad-binding.js';
 import { BatteryAlerts } from '../../shared/battery.js';
 import { paintBattery as paintSharedBattery, warnLowBattery as warn } from '../../shared/battery-badge.js';
 
@@ -65,8 +65,16 @@ function paintBattery(el, battery, connection, readAt) {
 /** Ícone de controle usado nos botões da lista. */
 function controllerIcon() {
   const { svg } = controllerSvg('pad-icon');
-  svg.setAttribute('viewBox', '20 60 360 215');
+  svg.setAttribute('viewBox', '20 60 360 240');
   return svg;
+}
+
+/** Ícone de um controle: o da marca, quando houver desenho próprio. */
+function iconFor(device) {
+  if (brandOf(device) === 'Sony') return sonyControllerIcon('pad-icon');
+  if (isProControllerDevice(device)) return proControllerIcon('pad-icon');
+  if (isGameSir(device) || isXboxDevice(device)) return xboxControllerIcon('pad-icon');
+  return controllerIcon();
 }
 
 /** Gamepads de outras marcas: interface de jogo padrão, fora da GameSir. */
@@ -280,7 +288,7 @@ export default {
             class: 'device-item icon-only' + (info.id === selectedId ? ' active' : '') + (blinking.has(info.id) ? ' blink' : ''),
             'aria-label': text,
             onclick: () => select(info.id),
-          }, controllerIcon());
+          }, iconFor(entry.device));
           itemEls.set(info.id, el);
           return el;
         }),
@@ -326,11 +334,14 @@ export default {
     }
 
     // Teste de botões só com o gamepad deste controle.
-    function testerFor(id, kind) {
+    function testerFor(id, kind, device, session = null) {
       return gamepadVisualTester({
+        art: kind === 'gamesir' ? (modelFor(device) === 'cyclone2' ? 'cyclone2' : 'gamesir') : null,
+        extraPressed: () => (modelFor(device) === 'cyclone2'
+          ? extraButtonsPressed(session?.lastState).map((id) => GAMESIR_EXTRA_INDEX[id]) : []),
         select: (pads) => {
           const free = pads.filter((p) => binder.unboundIndexes([p.index]).length);
-          if (kind === 'generic') return free;
+          if (kind === 'generic') return free.filter((p) => padMatchesDevice(p, device));
           const bound = binder.padFor(id);
           if (bound !== undefined) return pads.filter((p) => p.index === bound);
           // Sem ambiguidade: um só controle na lista e um só gamepad livre.
@@ -346,7 +357,7 @@ export default {
         { id: 'device', label: 'Dispositivo', render: () => deviceTab(session, label, describe(session.device).vidPid, modelFor(session.device), ctx) },
         { id: 'lights', label: 'Luzes', render: () => lightsTab(session, ctx, modelFor(session.device)) },
         { id: 'vibration', label: 'Vibração', render: () => vibrationTab(session, ctx) },
-        { id: 'test', label: 'Teste de botões', render: () => testerFor(id, 'gamesir') },
+        { id: 'test', label: 'Teste de botões', render: () => testerFor(id, 'gamesir', session.device, session) },
         { id: 'mapping', label: 'Mapeamento', render: () => profilesTab(session, ctx, modelFor(session.device)) },
       ]);
       clear(detail, header(label, session), tabs.element);
@@ -362,7 +373,7 @@ export default {
           note: 'Opções avançadas desta marca ainda não estão disponíveis no UniHub.',
           label,
         }) },
-        { id: 'test', label: 'Teste de botões', render: () => testerFor(deviceId(entry.device), 'generic') },
+        { id: 'test', label: 'Teste de botões', render: () => testerFor(deviceId(entry.device), 'generic', entry.device) },
       ]);
       clear(detail, header(label), tabs.element);
     }
@@ -396,6 +407,7 @@ export default {
             id,
             name: label.name,
             connection: label.connection,
+            icon: () => iconFor(entry.device),
             battery: battery ? { percent: battery.percent, charging: isCharging(battery, label.connection) } : null,
           };
         });

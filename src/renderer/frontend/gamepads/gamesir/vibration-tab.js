@@ -1,8 +1,8 @@
 // Sub-aba "Vibração" do GameSir: testa os motores e mostra, no desenho do
 // controle, qual lado está vibrando.
 
-import { h, card, button } from '../../core/dom.js';
-import { controllerSvg, PAD_PATH } from '../../shared/controller-art.js';
+import { h, card, button } from '../../../core/dom.js';
+import { controllerSvg, XBOX_PAD_PATH } from '../../../shared/controller-art.js';
 
 const STRENGTH = 200; // 0–255
 const DURATION_MS = 700;
@@ -39,23 +39,24 @@ export function vibrationTab(session, ctx) {
 
 /** Controle com as duas metades destacáveis e ondas de vibração nos punhos. */
 function vibrationArt() {
-  const { svg, add } = controllerSvg('vib-art');
+  const { svg, add } = controllerSvg('vib-art', XBOX_PAD_PATH);
   const defs = add('defs', {});
   for (const [id, x] of [['vib-clip-left', 0], ['vib-clip-right', 200]]) {
     const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
     clip.setAttribute('id', id);
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    for (const [k, v] of Object.entries({ x, y: 0, width: 200, height: 300 })) rect.setAttribute(k, v);
+    for (const [k, v] of Object.entries({ x, y: 0, width: 200, height: 325 })) rect.setAttribute(k, v);
     clip.append(rect);
     defs.append(clip);
   }
-  add('path', { d: PAD_PATH, class: 'vib-half vib-half-left', 'clip-path': 'url(#vib-clip-left)' });
-  add('path', { d: PAD_PATH, class: 'vib-half vib-half-right', 'clip-path': 'url(#vib-clip-right)' });
+  add('path', { d: XBOX_PAD_PATH, class: 'vib-half vib-half-left', 'clip-path': 'url(#vib-clip-left)' });
+  add('path', { d: XBOX_PAD_PATH, class: 'vib-half vib-half-right', 'clip-path': 'url(#vib-clip-right)' });
   // Ondas ao lado de cada punho.
-  for (const [side, x, dir] of [['left', 22, -1], ['right', 378, 1]]) {
+  const waveY = 265;
+  for (const [side, x, dir] of [['left', 6, -1], ['right', 394, 1]]) {
     for (const [i, r] of [10, 20, 30].entries()) {
       add('path', {
-        d: `M${x + dir * r * 0.2} ${215 - r} Q${x + dir * r} 215 ${x + dir * r * 0.2} ${215 + r}`,
+        d: `M${x + dir * r * 0.2} ${waveY - r} Q${x + dir * r} ${waveY} ${x + dir * r * 0.2} ${waveY + r}`,
         class: `vib-wave vib-wave-${side} vib-wave-${i}`,
       });
     }

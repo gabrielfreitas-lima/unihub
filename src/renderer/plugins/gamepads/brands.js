@@ -31,12 +31,28 @@ const BRANDS = {
   0x2563: 'ShanWan',
 };
 
+/** Nome fixo por VID:PID, para modelos que informam nomes diferentes conforme a conexão. */
+const MODEL_NAMES = {
+  [`${0x057e}:${0x2009}`]: 'Pro Controller',
+};
+
 export function brandOf(device) {
   return BRANDS[device.vendorId] || null;
 }
 
-/** Nome para mostrar: o do sistema, ou "Gamepad <marca>" se vier vazio. */
+/** Xbox de verdade ou controle que o sistema apresenta como Xbox (ex.: GameSir em modo Xbox). */
+export function isXboxDevice(device) {
+  return device.vendorId === 0x045e || /xbox|xinput/i.test(device.productName || '');
+}
+
+export function isProControllerDevice(device) {
+  return device.vendorId === 0x057e && device.productId === 0x2009;
+}
+
+/** Nome para mostrar: o do modelo, o do sistema, ou "Gamepad <marca>" se vier vazio. */
 export function genericName(device) {
+  const model = MODEL_NAMES[`${device.vendorId}:${device.productId}`];
+  if (model) return model;
   const name = (device.productName || '').trim();
   if (name) return name;
   const brand = brandOf(device);

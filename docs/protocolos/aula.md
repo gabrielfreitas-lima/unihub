@@ -1,6 +1,6 @@
 # AULA série F (teclados)
 
-Código em `src/renderer/plugins/aula/`, usado pelo plugin Teclados:
+Código em `src/renderer/plugins/teclados/aula/`, usado pela aba Teclados:
 `devices.js` (reconhecimento), `protocol.js` (pacotes, funções puras),
 `session.js` (conversa com o teclado) e `lights-tab.js` (aba Luzes).
 
@@ -97,7 +97,8 @@ giratório, 16 cachoeira colorida, 17 florescendo, 18 tempestade giratória
 `código × 21`. O modo de cor *n* do efeito usa a cor *n* da linha (conferido
 de 0 a 6 no Sempre ligado). Padrão de fábrica de cada linha: vermelho, verde,
 azul, amarelo, rosa, ciano, branco. O app oficial grava a cor escolhida na
-cor 0 e põe o modo em `0`.
+cor 0 e põe o modo em `0`, o que pode repetir uma cor da linha; o botão
+**Restaurar cores** da aba Luzes grava de volta o padrão de fábrica do efeito.
 
 ## Protocolo pelo cabo (confirmado com F75)
 

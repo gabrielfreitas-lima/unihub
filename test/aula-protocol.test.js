@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  isLedBlock, readLedState, effectSettings, withEffect, effectColors, withColor,
+  isLedBlock, readLedState, effectSettings, withEffect, effectColors, withColor, withFactoryColors, FACTORY_COLORS,
   receiverReadRequest, receiverWritePackets, parseReceiverPacket, assembleReceiverPackets,
   wiredPacket, parseWiredResponse, EFFECTS, parseBattery,
-} from '../src/renderer/plugins/aula/protocol.js';
+} from '../src/renderer/plugins/teclados/aula/protocol.js';
 
 const hex = (s) => s.trim().split(/\s+/).map((x) => parseInt(x, 16));
 
@@ -101,4 +101,14 @@ test('lista de efeitos: códigos de 1 a 17, sem repetição', () => {
   assert.equal(EFFECTS.find((e) => e.code === 6).colors, false);
   assert.equal(EFFECTS.find((e) => e.code === 1).speed, false);
   assert.equal(EFFECTS.find((e) => e.code === 2).colors, true);
+});
+
+test('restaurar cores: só o efeito escolhido volta às de fábrica', () => {
+  const table = new Array(490).fill(0x11);
+  const out = withFactoryColors(table, 2);
+  assert.deepEqual(effectColors(out, 2), FACTORY_COLORS);
+  assert.deepEqual(effectColors(out, 1), new Array(7).fill('#111111'));
+  assert.deepEqual(effectColors(out, 3), new Array(7).fill('#111111'));
+  assert.equal(out.length, 512);
+  assert.deepEqual(out.slice(0x1fa, 0x1fc), [0x5a, 0xa5]);
 });

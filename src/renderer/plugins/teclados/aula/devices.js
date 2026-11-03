@@ -6,8 +6,7 @@
 //
 // Atenção: 258A é o fabricante do chip (SINO WEALTH) e 3554 também aparece em
 // receptores de mouse de outras marcas. Por isso o nome "AULA" vem com o
-// modelo escolhido, ou "série F", e o protocolo de configuração (luzes,
-// macros) ainda não é usado.
+// modelo escolhido, ou "série F".
 
 export const WIRED = { vendorId: 0x258a, productId: 0x010c };
 export const RECEIVER = { vendorId: 0x3554, productId: 0xfa09 };

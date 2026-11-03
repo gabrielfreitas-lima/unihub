@@ -9,7 +9,7 @@
 // do sistema (ABNT2 em português); marca conhecida = o desenho do modelo.
 
 import { h, clear, button } from '../../core/dom.js';
-import { keyboardLayout, defaultLayout, keyLabel } from './layouts.js';
+import { keyboardLayout, defaultLayout, keyLabel } from '../../plugins/teclados/layouts.js';
 
 // O progresso continua ao trocar de aba; "Limpar teste" zera.
 const tested = new Set();

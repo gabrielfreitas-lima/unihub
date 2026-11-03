@@ -15,8 +15,8 @@ UniHub já conhece (GameSir, MCHOSE, Logitech…).
 | Teclados | beta | teclados de **qualquer marca**, com fio, pelo dongle, por **Bluetooth** (com o nome do aparelho) e o **teclado do notebook** (PS/2 ou interno, pela lista do Windows; testados só com exemplos): informações do aparelho (fabricante pelo VID, VID:PID) e **teste de teclas** visual (teclado padrão no layout do sistema, ou o desenho do modelo nas marcas conhecidas; teclas testadas, quantas teclas juntas). O teste usa as teclas que o Windows recebe, de qualquer teclado. **Teclados AULA série F** (testado com F75) são reconhecidos no cabo e pelo dongle 2.4G, com o modelo escolhido pelo usuário, o desenho de cada modelo no teste (F75, F87 e F99), a aba **Luzes** (efeito, brilho, velocidade e 7 cores por efeito) e, pelo dongle, a **bateria** com aviso de bateria baixa. Macros e troca de teclas ainda não |
 | Dispositivos HID | ferramenta | lista todas as interfaces HID, para começar um novo hub |
 
-As abas só aparecem para os plugins que você ativar em **Configurações › Adicionar plugin**
-(engrenagem no canto do cabeçalho).
+As abas só aparecem depois que você as ativa em **Configurações › Adicionar aba**
+(engrenagem no menu).
 Também em **Configurações**, dá para **iniciar o UniHub com o Windows**
 e, com isso ligado, deixá-lo na **bandeja do sistema**: ele começa só com o ícone
 perto do relógio, fechar a janela só a esconde, e os avisos de bateria continuam chegando.
@@ -55,8 +55,9 @@ apps disputando o mesmo dispositivo HID causam falhas de leitura.
   - **Gamepad API** para o teste de botões.
 - `core/hid-manager.js`: registro de dispositivos; trata conexão e desconexão.
 - `core/command-queue.js`: fila por dispositivo, com confirmação e reenvio.
-- `plugins/<fabricante>/`: `protocol.js` (bytes, testável), `session.js` (um
-  dispositivo aberto) e `plugin.js` (a aba).
+- `plugins/<tipo>/<marca>/`: o plugin da marca, só backend: `protocol.js` (bytes,
+  testável), `session.js` (um dispositivo aberto) e o que se sabe dos modelos.
+- `frontend/<tipo>/`: a tela, uma aba por tipo de aparelho.
 
 Para adicionar um fabricante: [docs/como-adicionar-um-hub.md](docs/como-adicionar-um-hub.md).
 
@@ -65,7 +66,7 @@ Para adicionar um fabricante: [docs/como-adicionar-um-hub.md](docs/como-adiciona
 - Dois controles idênticos aparecem com o mesmo nome. Para saber qual é qual,
   aperte um botão no controle: a entrada dele pisca por 1,5 s na lista.
 - O dongle GameSir e o controle ligado nele viram uma entrada só. A regra usa
-  a tabela de PIDs conhecidos em `plugins/gamesir/names.js`; modelos novos
+  a tabela de PIDs conhecidos em `plugins/gamepads/gamesir/names.js`; modelos novos
   precisam ser cadastrados lá.
 - O layout dos perfis GameSir muda entre modelos. O mapeamento de botões só
   aparece para modelos confirmados (hoje, o Cyclone 2).

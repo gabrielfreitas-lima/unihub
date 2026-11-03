@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BUTTONS, KEY_SIZE, KEYS_OFFSET, DISABLED, parseMapping, buildMapping, countRemapped, targetName,
-} from '../src/renderer/plugins/gamesir/mapping.js';
+  BUTTONS, KEY_SIZE, KEYS_OFFSET, DISABLED, parseMapping, parsePaddle, buildMapping, buildPaddle, countRemapped, targetName, PADDLES,
+} from '../src/renderer/plugins/gamepads/gamesir/mapping.js';
 
 const blank = () => new Uint8Array(BUTTONS.length * KEY_SIZE); // perfil de fábrica: tudo zero
 
@@ -52,4 +52,23 @@ test('nomes dos destinos', () => {
   assert.equal(targetName(10), 'B');
   assert.equal(targetName(20), 'RT');
   assert.equal(targetName(255), 'Desativado');
+});
+
+test('paddles: o padrão de fábrica é mapear para o próprio código', () => {
+  const [l4, r4] = PADDLES;
+  assert.deepEqual([l4.offset, r4.offset], [176, 335]);
+  const factory = Uint8Array.of(0, 0, 1, 17, 0, 0, 0);
+  const entry = parsePaddle(l4, factory);
+  assert.equal(entry.target, null);
+  assert.deepEqual(buildPaddle(l4, entry), factory);
+});
+
+test('paddles: mapeia, lê de volta e restaura o padrão', () => {
+  const r4 = PADDLES[1];
+  const entry = parsePaddle(r4, Uint8Array.of(1, 5, 1, 18, 0, 0, 1));
+  const mapped = buildPaddle(r4, { ...entry, target: 10 });
+  assert.deepEqual([...mapped], [1, 5, 1, 10, 0, 0, 1]); // preserva turbo e "alternar"
+  const back = parsePaddle(r4, mapped);
+  assert.equal(back.target, 10);
+  assert.deepEqual([...buildPaddle(r4, { ...back, target: null })], [1, 5, 1, 18, 0, 0, 1]);
 });

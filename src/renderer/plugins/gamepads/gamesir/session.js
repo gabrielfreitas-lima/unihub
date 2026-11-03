@@ -1,13 +1,13 @@
 // Uma sessão por controle GameSir conectado: abre o HID, mantém o
 // heartbeat, encaminha relatórios e serializa comandos pela fila.
 
-import { CommandQueue } from '../../core/command-queue.js';
-import { withReportId } from '../../core/bytes.js';
+import { CommandQueue } from '../../../core/command-queue.js';
+import { withReportId } from '../../../core/bytes.js';
 import {
   commands, classify, readBlockPackets, writeBlockPackets, parseFirmwareVersion, parseCurrentProfile,
   hasPhysicalInput, parseBattery, isBlockReply, blockReplyData, isWriteAck, PROFILE_SIZE, PROFILE_SLOTS, REPORT_RATE_OFFSET, Cmd,
 } from './protocol.js';
-import { BUTTONS, KEYS_OFFSET, KEY_SIZE } from './mapping.js';
+import { BUTTONS, PADDLES, KEYS_OFFSET, KEY_SIZE } from './mapping.js';
 
 const HEARTBEAT_MS = 1000;
 const LOG_LIMIT = 300;
@@ -148,6 +148,18 @@ export class GameSirSession extends EventTarget {
     }
     if (start === -1) return;
     await this.writeBlock(slot, bytes.subarray(start, end + 1), KEYS_OFFSET + start);
+  }
+
+  /** Os 7 bytes de cada paddle de um perfil, na ordem de PADDLES. */
+  async readPaddles(slot) {
+    const out = [];
+    for (const paddle of PADDLES) out.push(await this.readBlock(slot, KEY_SIZE, paddle.offset));
+    return out;
+  }
+
+  /** Grava os 7 bytes de um paddle, se mudaram em relação a `before`. */
+  async writePaddle(slot, paddle, before, bytes) {
+    if (bytes.some((v, i) => v !== before[i])) await this.writeBlock(slot, bytes, paddle.offset);
   }
 
   /** Marcha da taxa de relatório em cada perfil: { 1: gear, 2: gear, … }. */

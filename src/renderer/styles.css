@@ -1,3 +1,15 @@
+/* Montserrat (licença em fonts/OFL.txt): vai dentro do app, que funciona sem internet. */
+@font-face {
+  font-family: "Montserrat"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(fonts/montserrat-latin.woff2) format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Montserrat"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(fonts/montserrat-latin-ext.woff2) format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
 :root {
   --bg: #14161a;
   --panel: #1c1f25;
@@ -47,11 +59,21 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Barras de rolagem: neutras, na cor do texto do tema, sem trilho nem setas. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text) 18%, transparent) padding-box;
+  border: 2px solid transparent; border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--text) 32%, transparent); }
+::-webkit-scrollbar-thumb:active { background-color: color-mix(in srgb, var(--text) 45%, transparent); }
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
+  font: 14px/1.45 "Montserrat", "Segoe UI", system-ui, sans-serif;
   display: flex;
   flex-direction: column;
 }
@@ -76,48 +98,48 @@ code, pre { font-family: "Cascadia Mono", Consolas, monospace; }
 }
 /* O que é clicável no cabeçalho não pode arrastar a janela. */
 .topbar button, .topbar .tab { -webkit-app-region: no-drag; }
-.brand { font-weight: 700; letter-spacing: .3px; }
-.brand-row { display: flex; align-items: center; gap: 8px; }
-.brand-short, .tab-icon, .pin-btn, .drag-strip { display: none; }
+.brand { font-size: 24px; font-weight: 700; letter-spacing: .3px; }
+/* O logo tem uma área própria no canto, igual nos dois modos de menu. */
+.brand-row { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 150px; margin: 0 -16px; }
+.tab-icon, .pin-btn, .drag-strip { display: none; }
 
 /* --- Menu à esquerda (Configurações › Posição do menu) ---------------------
    A faixa de cima (52 px) continua existindo para arrastar a janela e para os
    botões minimizar/maximizar/fechar; as telas mantêm a mesma altura útil. */
 body.menu-left {
-  --menu-w: 200px;
+  /* --menu-open-w: largura do componente mais largo, medida pelo app.js. */
+  --menu-w: var(--menu-open-w, 150px);
   display: grid;
   grid-template-columns: var(--menu-w) 1fr;
   grid-template-rows: 52px 1fr;
+  background: linear-gradient(var(--panel) 52px, var(--bg) 52px);
 }
 body.menu-left.menu-collapsed { --menu-w: 60px; }
 body.menu-left .topbar {
-  grid-column: 1; grid-row: 1 / 3;
+  grid-column: 1; grid-row: 2;
   width: var(--menu-w); height: auto;
   flex-direction: column; align-items: stretch; gap: 6px;
-  padding: 0 8px 12px;
+  padding: 12px 8px;
   border-bottom: 0;
   position: relative; z-index: 20; overflow: hidden;
-  transition: width .15s, box-shadow .15s;
+  transition: width .15s;
   /* Área de arrastar janela não recebe o mouse: o menu "perderia" o hover e
      recolheria antes do clique no alfinete. Quem arrasta é a faixa de cima. */
   -webkit-app-region: no-drag;
 }
-/* O logo fica na faixa do topo, sem linhas em volta; a linha que separa o
-   menu do conteúdo só começa abaixo dele. */
+/* O logo fica parado na faixa do topo, e a barra abre e fecha abaixo dele. Não
+   recebe o mouse (ficar sobre o logo não abre a barra) e arrasta a janela. */
 body.menu-left .brand-row {
-  height: 52px; flex-shrink: 0; justify-content: space-between;
-  margin: 0 -8px 6px; padding: 0 14px;
+  position: fixed; top: 0; left: 0; height: 52px; margin: 0; padding-bottom: 1px;
+  pointer-events: none; -webkit-app-region: drag;
 }
 body.menu-left .topbar::after {
-  content: ''; position: absolute; top: 52px; bottom: 0; right: 0;
+  content: ''; position: absolute; top: 0; bottom: 0; right: 0;
   width: 1px; background: var(--border); pointer-events: none;
 }
-body.menu-left .pin-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
-  background: none; border: 1px solid transparent; color: var(--muted);
-}
-body.menu-left .pin-btn:hover { color: var(--text); border-color: var(--border); }
+/* Ao lado de Configurações e Temas, sempre na terceira posição: não muda de lugar
+   quando os outros dois se empilham. */
+body.menu-left .pin-btn { display: inline-flex; position: absolute; left: 88px; bottom: 0; }
 body.menu-left .pin-btn[aria-pressed="true"] { color: var(--accent); }
 body.menu-left .tabs { flex-direction: column; flex: 1; height: auto; overflow-x: hidden; overflow-y: auto; gap: 2px; }
 body.menu-left .tab {
@@ -144,30 +166,69 @@ body.menu-left .tab[aria-selected="true"] .tab-icon.drawn .grid-icon rect { fill
 body.menu-left .tab[aria-selected="true"] .tab-icon.drawn .pad-body,
 body.menu-left .tab[aria-selected="true"] .tab-icon.drawn .hs-cup { fill: var(--accent); }
 body.menu-left .tab[aria-selected="true"] .tab-icon.drawn .hs-band { stroke: var(--accent); }
-body.menu-left .top-actions { flex-direction: column; align-items: flex-start; gap: 6px; margin-left: 4px; }
-body.menu-left .top-actions .btn { gap: 8px; }
-/* Menu aberto (fixo ou passando o mouse): a engrenagem ganha o nome. */
-.btn-label { display: none; white-space: nowrap; }
-body.menu-left:not(.menu-collapsed) .top-actions .btn-label,
-body.menu-left.menu-collapsed.menu-peek .top-actions .btn-label { display: inline; }
+body.menu-left .top-actions { position: relative; flex-direction: column; align-items: flex-start; gap: 6px; margin-left: 4px; }
+/* Menu aberto (fixo ou passando o mouse): Temas à direita de Configurações. Ao
+   abrir, Temas desliza por cima de Configurações e cai no lugar. */
+body.menu-left:not(.menu-collapsed) .top-actions,
+body.menu-left.menu-collapsed.menu-peek:not(.theme-held) .top-actions { flex-direction: row-reverse; justify-content: flex-end; }
+body.menu-ready.menu-left:not(.menu-collapsed) #theme-btn,
+body.menu-ready.menu-left.menu-collapsed.menu-peek:not(.theme-held) #theme-btn { animation: theme-drop .5s; }
+@keyframes theme-drop {
+  0% { transform: translate(-44px, -40px); animation-timing-function: ease-out; }
+  45% { transform: translate(0, -40px); animation-timing-function: ease-in; }
+  75% { transform: translate(0, 0); animation-timing-function: ease-out; }
+  87% { transform: translate(0, -6px); animation-timing-function: ease-in; }
+  100% { transform: translate(0, 0); }
+}
+/* Ao fechar, Temas sobe e volta para cima de Configurações. A barra espera um
+   pouco para encolher, senão cortaria o botão no caminho. */
+body.menu-ready.menu-left.menu-collapsed:not(.menu-peek):not(.theme-held) #theme-btn { animation: theme-stack .35s; }
+body.menu-ready.menu-left.menu-collapsed:not(.menu-peek) .topbar { transition: width .15s .2s; }
+@keyframes theme-stack {
+  0% { transform: translate(44px, 40px); animation-timing-function: ease-out; }
+  50% { transform: translate(44px, 0); animation-timing-function: ease-in-out; }
+  100% { transform: translate(0, 0); }
+}
+/* No mesmo tempo, as letras somem aos poucos; o "U" e o logo centralizado só
+   entram no fim. Ao abrir, as letras surgem aos poucos. "menu-closing" e
+   "menu-opening" são postas pelo app.js só durante a troca. */
+body.menu-left .tab-label { white-space: nowrap; }
+body.menu-closing.menu-left .tab-label { animation: menu-text-out .35s; }
+body.menu-closing.menu-left .pin-btn { animation: menu-pin-out .35s; }
+body.menu-opening.menu-left .tab-label,
+body.menu-opening.menu-left .pin-btn { animation: menu-text-in .35s; }
+@keyframes menu-text-in { from { opacity: 0; } }
+@keyframes menu-text-out { from, to { display: inline; } from { opacity: 1; } to { opacity: 0; } }
+@keyframes menu-pin-out { from, to { display: inline-flex; } from { opacity: 1; } to { opacity: 0; } }
+/* Ao fixar ou soltar a barra, o conteúdo desliza no mesmo tempo. Ao fixar, o
+   alfinete dá uma batidinha. */
+body.menu-ready.menu-left { transition: grid-template-columns .35s ease; }
+body.menu-ready.menu-left .pin-btn[aria-pressed="true"] svg { animation: menu-pin-press .35s; }
+@keyframes menu-pin-press { 40% { transform: scale(.7) rotate(-20deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #theme-btn, .tab-label, .pin-btn, .pin-btn svg { animation: none !important; }
+  body.menu-left, body.menu-left .topbar, body.menu-left .brand-row::before { transition: none !important; }
+}
 body.menu-left .drag-strip {
   display: block; grid-column: 2; grid-row: 1; position: relative;
   background: var(--panel); border-bottom: 1px solid var(--border);
 }
-/* O Windows trata a área de arrastar como barra de título mesmo com o menu
-   aberto por cima dela: começa depois do espaço do menu aberto (200 px). */
 body.menu-left .drag-area { position: absolute; inset: 0; -webkit-app-region: drag; }
-body.menu-left.menu-collapsed .drag-area { left: calc(200px - var(--menu-w)); }
 body.menu-left main { grid-column: 2; grid-row: 2; }
 
 /* Recolhido: só os ícones; passando o mouse, abre por cima do conteúdo. */
 /* "menu-peek" é posto pelo app.js ao passar o mouse, e sai com um pequeno atraso. */
+/* A linha do cabeçalho começa sempre no fim da barra: esta área, da largura da
+   barra e no mesmo tempo dela, cobre a linha acima da barra aberta. */
+body.menu-left .brand-row::before {
+  content: ''; position: absolute; z-index: -1; top: 0; bottom: 0; left: 0;
+  width: var(--menu-open-w, 150px); background: var(--panel); transition: width .15s;
+}
+body.menu-left.menu-collapsed:not(.menu-peek) .brand-row::before { width: 60px; transition: width .15s .2s; }
 body.menu-left.menu-collapsed:not(.menu-peek) .tab-label,
-body.menu-left.menu-collapsed:not(.menu-peek) .brand-full,
-body.menu-left.menu-collapsed:not(.menu-peek) .pin-btn { display: none; }
-body.menu-left.menu-collapsed:not(.menu-peek) .brand-short { display: inline; }
-body.menu-left.menu-collapsed:not(.menu-peek) .brand-row { justify-content: center; }
-body.menu-left.menu-collapsed.menu-peek .topbar { width: 200px; box-shadow: 8px 0 24px rgb(0 0 0 / .35); }
+body.menu-left.menu-collapsed:not(.menu-peek) .pin-btn,
+body.menu-left.menu-collapsed.theme-held .pin-btn { display: none; }
+body.menu-left.menu-collapsed.menu-peek .topbar { width: var(--menu-open-w, 150px); }
 .tabs { display: flex; gap: 2px; flex: 1; overflow-x: auto; height: 100%; }
 .tab {
   display: flex; align-items: center; gap: 6px;
@@ -197,6 +258,7 @@ main { flex: 1; overflow: auto; padding: 20px; }
 .btn:disabled { opacity: .5; cursor: default; }
 /* Botão só com ícone (engrenagem das configurações, no cabeçalho). */
 .btn.icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 7px 9px; }
+.btn.pin-btn { display: none; }
 .top-actions { display: flex; align-items: center; gap: 8px; }
 #theme-btn[aria-expanded="true"] { border-color: var(--accent); }
 
@@ -228,36 +290,29 @@ main { flex: 1; overflow: auto; padding: 20px; }
   padding: 14px 16px; text-align: left; color: inherit; font: inherit;
 }
 /* Início: um cartão por aparelho; clicar abre o aparelho no plugin dele. */
-.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
-/* Janela não maximizada: até 3 cartões por linha, ocupando a largura toda
-   (cada coluna tem no mínimo 1/3 da largura; numa janela estreita, 2 ou 1). */
-@media (max-width: 1500px) {
-  .home-grid { grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 28px) / 3)), 1fr)); }
-}
-/* Tela cheia: até 5 por linha, cartões quadrados, com o desenho grande no meio. */
-@media (min-width: 1501px) {
-  .home-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  /* ".home-grid" na frente: estas regras valem por cima das normais, que vêm depois no arquivo. */
-  .home-grid .home-card { aspect-ratio: 1 / 1; }
-  .home-grid .home-card-main { flex: 1; flex-direction: column; justify-content: center; gap: 22px; text-align: center; }
-  .home-grid .home-card-art { width: 42%; height: auto; aspect-ratio: 1; border-radius: 28px; }
-  .home-grid .home-card-art svg { width: 62%; height: 62%; }
-  .home-grid .home-card-name { font-size: 24px; white-space: normal; }
-}
+/* Cartões quadrados, com o desenho grande no meio e tudo proporcional à largura.
+   Em janela, 3 por linha; em tela cheia (classe "home-wide", posta pelo app.js a
+   partir de 1501 px), 5. A troca é animada com uma transição de visualização:
+   cada parte do cartão desliza até o lugar novo. */
+.home-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+body.home-wide .home-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+::view-transition-group(*) { animation-duration: .35s; }
+::view-transition-old(*), ::view-transition-new(*) { animation-duration: .35s; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 .home-card {
   display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
   text-align: left; font: inherit; color: inherit; cursor: pointer;
-  min-height: 145px; /* altura padrão de todos os cartões (só cresce na vertical) */
+  aspect-ratio: 1 / 1; container-type: inline-size;
   border-width: 3px; /* borda mais visível, na janela e em tela cheia */
 }
 .home-card:hover { border-color: var(--accent); }
 .home-card-art {
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-  width: 56px; height: 56px; border-radius: 12px;
+  width: 42%; aspect-ratio: 1; border-radius: 28px;
   background: var(--panel-2); border: 1px solid var(--border);
   font-weight: 700; font-size: 20px;
 }
-.home-card-art svg { width: 36px; height: 36px; }
+.home-card-art svg { width: 62%; height: 62%; }
 .home-card-art .pad-body, .home-card-art .hs-cup { fill: var(--muted); }
 .home-card-art .pad-part { fill: var(--panel-2); }
 .home-card-art .hs-band { stroke: var(--muted); }
@@ -267,8 +322,8 @@ main { flex: 1; overflow: auto; padding: 20px; }
 .home-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .home-card-plugin { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 /* Meio: desenho e nome em destaque. */
-.home-card-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.home-card-name { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-card-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; min-width: 0; text-align: center; }
+.home-card-name { font-size: clamp(16px, 9.8cqi, 32px); }
 /* Embaixo: bateria com barra até o fim do cartão. */
 .home-card-bottom { display: flex; align-items: center; gap: 10px; min-height: 20px; }
 .home-card-pct { font-size: 13px; font-weight: 600; color: var(--muted); min-width: 34px; flex-shrink: 0; }
@@ -294,8 +349,13 @@ main { flex: 1; overflow: auto; padding: 20px; }
 .active-note.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); }
 .active-note.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
 .active-note.warn .btn { flex: none; }
-.mapping { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 18px; margin: 12px 0; }
-.map-row { display: grid; grid-template-columns: 56px 16px 1fr; align-items: center; gap: 8px; }
+/* Em tela cheia (classe "home-wide"), Exportar perfis fica ao lado do mapeamento. */
+body.home-wide .mapping-page { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+body.home-wide .export-card .row { flex-direction: column; align-items: stretch; }
+.mapping { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; margin: 12px 0; }
+.map-group { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+.map-group h4 { margin: 0 0 2px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.map-row { display: grid; grid-template-columns: 68px 16px 1fr; align-items: center; gap: 8px; }
 .map-key {
   text-align: center; padding: 6px 0; border-radius: 6px; font-weight: 600;
   background: var(--panel-2); border: 1px solid var(--border);
@@ -465,6 +525,23 @@ main { flex: 1; overflow: auto; padding: 20px; }
   0% { transform: scale(.75); opacity: .9; }
   100% { transform: scale(2.1); opacity: 0; }
 }
+.gp-lineart .pad-body { fill: none; stroke: var(--text); stroke-width: 2.5; }
+.gp-lineart .gp-btn:not(.on), .gp-lineart .gp-trigger { fill: none; stroke: var(--text); }
+.gp-line-ring { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.gp-line-arrow { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.gp-sony-speaker { fill: none; stroke: var(--muted); stroke-width: .8; }
+.gp-line-stick-top { fill: none; stroke: var(--text); stroke-width: 1.5; pointer-events: none; }
+.gp-lineart .gp-stick-well { fill: none; stroke: none; }
+.gp-line-strip { stroke-width: 3; stroke-linecap: round; }
+.gp-line-mark { fill: none; stroke: var(--text); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.gp-lineart .gp-btn.on + .gp-line-mark { stroke: #fff; }
+.gp-sony-symbol { fill: none; stroke-width: 1.6; pointer-events: none; }
+.gp-sony-triangle { stroke: #35b5b0; }
+.gp-sony-circle { stroke: #e06a70; }
+.gp-sony-cross { stroke: #7f9fd8; }
+.gp-sony-square { stroke: #b79ac8; }
+.gp-lineart .gp-btn.on + .gp-sony-symbol { stroke: #fff; }
+.gp-lineart .gp-btn.on + .gp-label { fill: #fff; }
 .gp-pressed { text-align: center; min-height: 1.4em; margin: 6px 0 0; }
 
 /* Vibração */
@@ -733,3 +810,5 @@ main { flex: 1; overflow: auto; padding: 20px; }
    azul): selecionado = cor do texto do tema, com o texto na cor do cartão. */
 #settings-dialog, #hub-dialog { --accent: var(--text); --accent-2: var(--text); --on-accent: var(--panel); }
 #settings-dialog .switch:checked::after, #hub-dialog .switch:checked::after { background: var(--panel); }
+/* Na janela Plugins, os botões ficam neutros também ao passar o mouse, mesmo dentro do item colorido. */
+.ext-item .btn { --accent: var(--text); }

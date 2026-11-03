@@ -3,12 +3,12 @@
 //
 // Cada plugin recebe só os dispositivos que `matches()` aceita e decide o que
 // mostrar. Os plugins não se conhecem entre si. Só as extensões instaladas
-// pelo usuário aparecem no cabeçalho.
+// pelo usuário aparecem no menu.
 
 import { h, clear, button } from './core/dom.js';
 import { HidManager, describe } from './core/hid-manager.js';
 import { Extensions } from './core/extensions.js';
-import { plugins } from './plugins/index.js';
+import { plugins } from './frontend/index.js';
 import { batteryLevel } from './shared/battery.js';
 
 const STATUS_LABEL = { beta: 'beta', planned: 'em breve', tool: 'ferramenta' };
@@ -93,6 +93,29 @@ function renderTabs() {
   clear(tabsEl,
     tab('overview', 'Início', overviewIcon),
     installedPlugins().map((p) => tab(p.id, p.name, p.icon)));
+  fitMenuWidth();
+}
+
+// Barra lateral aberta: só a largura do que ela mostra, a linha de botões de baixo
+// (3 de 38 px e 2 espaços, mais as margens) ou a aba de nome mais longo.
+const MENU_BUTTONS_WIDTH = 150;
+const MENU_SIDE_PADDING = 8;
+const measureCanvas = document.createElement('canvas').getContext('2d');
+
+// A fonte do app carrega depois do primeiro desenho: mede de novo com ela.
+document.fonts.ready.then(() => fitMenuWidth());
+
+function fitMenuWidth() {
+  const sample = tabsEl.querySelector('.tab');
+  if (!document.body.classList.contains('menu-left') || !sample) return;
+  const style = getComputedStyle(sample);
+  const icon = sample.querySelector('.tab-icon').offsetWidth;
+  // Sem medir a tela: com a barra recolhida, os nomes das abas estão escondidos.
+  measureCanvas.font = style.font;
+  const longest = Math.max(...[...tabsEl.querySelectorAll('.tab-label')].map((l) => measureCanvas.measureText(l.textContent).width));
+  const tabWidth = parseFloat(style.paddingLeft) + icon + parseFloat(style.columnGap) + longest + parseFloat(style.paddingRight);
+  const width = Math.ceil(Math.max(MENU_BUTTONS_WIDTH, tabWidth + 2 * MENU_SIDE_PADDING));
+  document.body.style.setProperty('--menu-open-w', `${width}px`);
 }
 
 function scanButton() {
@@ -118,8 +141,8 @@ function renderOverview(container) {
       h('h3', {}, p.name),
       h('ul', {}, deviceNames(p).map((n) => h('li', {}, n))),
       canInstall(p)
-        ? button(`Ativar plugin ${p.name}`, () => extensions.install(p.id))
-        : h('p', { class: 'muted small' }, 'Plugin em breve.'))))) : null;
+        ? button(`Ativar aba ${p.name}`, () => extensions.install(p.id))
+        : h('p', { class: 'muted small' }, 'Aba em breve.'))))) : null;
 
   // Algum aparelho não apareceu sozinho? Só então o botão de procurar ganha destaque.
   const scanHint = h('p', { class: 'muted small scan-hint' },
@@ -130,11 +153,11 @@ function renderOverview(container) {
     clear(container,
       h('section', { class: 'welcome' },
         h('h2', {}, 'Bem-vindo ao UniHub'),
-        h('p', { class: 'muted' }, 'Um app só para configurar periféricos de várias marcas. Ative os plugins dos aparelhos que você usa e cada um vira uma aba aqui em cima.')),
+        h('p', { class: 'muted' }, 'Um app só para configurar periféricos de várias marcas. Ative as abas dos aparelhos que você usa e cada uma aparece no menu.')),
       !hid.available ? h('div', { class: 'error' }, 'WebHID indisponível neste ambiente.') : null,
       suggestionCards,
       h('div', { class: 'welcome-actions' },
-        button(suggestions.length ? 'Ver todos os plugins' : 'Adicionar plugin', openDialog, { kind: suggestions.length ? 'secondary' : 'primary' })),
+        button(suggestions.length ? 'Ver todas as abas' : 'Adicionar aba', openDialog, { kind: suggestions.length ? 'secondary' : 'primary' })),
       scanHint,
     );
     return;
@@ -146,7 +169,7 @@ function renderOverview(container) {
     !hid.available ? h('div', { class: 'error' }, 'WebHID indisponível neste ambiente.') : null,
     cards.length
       ? h('div', { class: 'home-grid' }, cards)
-      : h('div', { class: 'empty' }, 'Nenhum aparelho conectado. Ligue um controle ou fone e ele aparece aqui.'),
+      : h('div', { class: 'empty' }, 'Nenhum aparelho conectado. Ligue um controle, fone ou teclado e ele aparece aqui.'),
     suggestionCards,
     scanHint,
   );
@@ -165,19 +188,19 @@ function extensionItem(p) {
       ? button('Em breve', null, { disabled: true })
       : installed
         ? button('Remover', () => extensions.uninstall(p.id))
-        : button('Adicionar', () => extensions.install(p.id), { kind: 'primary' }));
+        : button('Adicionar', () => extensions.install(p.id)));
 }
 
 function renderDialog() {
-  // Plugins com aparelho conectado primeiro; ferramentas de desenvolvedor no fim, em "Avançado".
+  // Abas com aparelho conectado primeiro; ferramentas de desenvolvedor no fim, em "Avançado".
   const brands = plugins.filter((p) => p.status !== 'tool')
     .sort((a, b) => Number(deviceNames(b).length > 0) - Number(deviceNames(a).length > 0));
   const tools = plugins.filter((p) => p.status === 'tool');
   clear(dialogEl,
     h('div', { class: 'dialog-head' },
-      h('h2', {}, 'Plugins'),
+      h('h2', {}, 'Abas'),
       button('Fechar', () => dialogEl.close())),
-    h('p', { class: 'muted' }, 'Cada plugin funciona para os aparelhos daquele tipo, de qualquer marca, e vira uma aba no cabeçalho. Adicione só os que você usa.'),
+    h('p', { class: 'muted' }, 'Cada aba funciona para os aparelhos daquele tipo, de qualquer marca, e aparece no menu. Adicione só as que você usa.'),
     h('div', { class: 'ext-list' }, brands.map(extensionItem)),
     tools.length ? h('details', { class: 'advanced' },
       h('summary', {}, 'Avançado (para desenvolvedores)'),
@@ -207,8 +230,9 @@ const wiredOrUnknown = (connection) => !connection || /cabo|usb|integrado/i.test
 
 /**
  * Cartões do Início: um por aparelho conectado, de todos os plugins. O plugin
- * informa os aparelhos em `cards()` e abre um deles em `focus(id)`; sem isso,
- * vale o nome de cada aparelho e o clique abre a aba do plugin.
+ * informa os aparelhos em `cards()` (cada um pode ter um `icon` próprio) e abre
+ * um deles em `focus(id)`; sem isso, vale o nome de cada aparelho e o clique abre
+ * a aba do plugin.
  */
 function deviceCards(plugin) {
   const handle = ensureMounted(plugin).handle;
@@ -235,7 +259,7 @@ function deviceCards(plugin) {
       h('span', { class: 'home-card-plugin' }, plugin.name),
       c.connection ? h('span', { class: 'pill' }, c.connection) : null),
     h('span', { class: 'home-card-main' },
-      h('span', { class: 'home-card-art', 'aria-hidden': 'true' }, plugin.icon ? plugin.icon() : plugin.name.charAt(0)),
+      h('span', { class: 'home-card-art', 'aria-hidden': 'true' }, c.icon ? c.icon() : plugin.icon ? plugin.icon() : plugin.name.charAt(0)),
       h('strong', { class: 'home-card-name' }, c.name)),
     h('span', { class: 'home-card-bottom' },
       percent,
@@ -278,10 +302,33 @@ function show(id) {
 const overviewEl = h('div', { class: 'plugin-view home-view' });
 viewEl.append(overviewEl);
 
+// Início: em janela, cartões deitados; em tela cheia (a partir de 1501 px),
+// quadrados. Ao trocar, cada parte do cartão desliza até o lugar novo.
+const HOME_CARD_PARTS = ['.home-card-art', '.home-card-name', '.home-card-top', '.home-card-bottom'];
+const wideScreen = window.matchMedia('(min-width: 1501px)');
+const applyHomeWidth = () => document.body.classList.toggle('home-wide', wideScreen.matches);
+applyHomeWidth();
+wideScreen.addEventListener('change', () => {
+  const cards = overviewEl.hidden ? [] : [...overviewEl.querySelectorAll('.home-card')];
+  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!cards.length || calm || !document.startViewTransition) return applyHomeWidth();
+  const named = [];
+  cards.forEach((card, i) => {
+    for (const [part, el] of [['card', card], ...HOME_CARD_PARTS.map((sel) => [sel.slice(11), card.querySelector(sel)])]) {
+      if (!el) continue;
+      el.style.viewTransitionName = `home-${part}-${i}`;
+      named.push(el);
+    }
+  });
+  document.startViewTransition(applyHomeWidth).finished.finally(() => {
+    for (const el of named) el.style.viewTransitionName = '';
+  });
+});
+
 extensions.addEventListener('change', ({ detail }) => {
   if (!detail.installed) unmount(detail.id);
   if (dialogEl.open) renderDialog();
-  if (detail.installed) toast(`Plugin ${plugins.find((p) => p.id === detail.id).name} ativado.`);
+  if (detail.installed) toast(`Aba ${plugins.find((p) => p.id === detail.id).name} ativada.`);
   show(detail.installed && !dialogEl.open ? detail.id : active);
 });
 
@@ -344,10 +391,10 @@ function renderSettings(settings) {
               onclick: async () => redraw(applyMenuLayout(await saveSetting('menuPosition', value) || settings)),
             }, text))))),
       h('div', { class: 'settings-col' },
-        // "Adicionar plugin" mora aqui: abre a janela Plugins.
-        settingsGroup('Plugins',
-          h('p', { class: 'settings-text' }, 'Aqui você adiciona outros plugins compatíveis com o UniHub. Cada plugin adicionado vira uma aba no cabeçalho.'),
-          h('div', { class: 'row' }, button('Adicionar plugin', () => {
+        // "Adicionar aba" mora aqui: abre a janela Abas.
+        settingsGroup('Abas',
+          h('p', { class: 'settings-text' }, 'Aqui você adiciona outras abas compatíveis com o UniHub. Cada aba adicionada aparece no menu.'),
+          h('div', { class: 'row' }, button('Adicionar aba', () => {
             settingsDialog.close();
             openDialog();
           }))))),
@@ -372,6 +419,7 @@ function applyMenuLayout(settings) {
   pinBtn.hidden = !left;
   pinBtn.setAttribute('aria-pressed', String(layout.menuPinned));
   pinBtn.setAttribute('aria-label', layout.menuPinned ? 'Recolher o menu' : 'Fixar o menu aberto');
+  fitMenuWidth();
   return settings;
 }
 
@@ -382,12 +430,39 @@ const menuEl = document.querySelector('.topbar');
 let menuCloseTimer = 0;
 menuEl.addEventListener('mouseenter', () => {
   clearTimeout(menuCloseTimer);
-  document.body.classList.add('menu-peek');
+  const { classList } = document.body;
+  // Entrou direto em Temas: o botão espera o mouse sair dele para mudar de lugar.
+  const first = !classList.contains('menu-peek') || classList.contains('theme-held');
+  classList.toggle('theme-held', first && classList.contains('menu-collapsed') && themeBtn.matches(':hover'));
+  classList.add('menu-peek');
 });
 menuEl.addEventListener('mouseleave', () => {
   clearTimeout(menuCloseTimer);
   menuCloseTimer = setTimeout(() => document.body.classList.remove('menu-peek'), MENU_CLOSE_DELAY_MS);
 });
+
+// Saiu de Temas e continuou na barra: agora o botão pode ir para o lugar dele.
+document.getElementById('theme-btn').addEventListener('mouseleave', (e) => {
+  if (menuEl.contains(e.relatedTarget)) document.body.classList.remove('theme-held');
+});
+
+// Marca o instante em que a barra abre ou fecha. As letras animam só nesse
+// instante: as abas são recriadas quando um aparelho muda, e não podem piscar.
+const MENU_MOTION_MS = 400;
+let menuWasOpen = null;
+let menuMotionTimer = 0;
+new MutationObserver(() => {
+  const { classList } = document.body;
+  const open = classList.contains('menu-left') && (!classList.contains('menu-collapsed') || classList.contains('menu-peek'));
+  if (open === menuWasOpen) return;
+  const moved = menuWasOpen !== null && classList.contains('menu-ready');
+  menuWasOpen = open;
+  if (!moved) return;
+  clearTimeout(menuMotionTimer);
+  classList.remove('menu-opening', 'menu-closing');
+  classList.add(open ? 'menu-opening' : 'menu-closing');
+  menuMotionTimer = setTimeout(() => classList.remove('menu-opening', 'menu-closing'), MENU_MOTION_MS);
+}).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
 pinBtn.addEventListener('click', async () => {
   const saved = await saveSetting('menuPinned', !layout.menuPinned);
@@ -396,10 +471,11 @@ pinBtn.addEventListener('click', async () => {
 
 // --- Temas: botão ao lado das configurações, com um menu de opções ------------
 // As cores ficam no styles.css (:root[data-theme]); o Grafite é o padrão.
+// `swatch`: a parte mais clara e a mais escura do tema (--panel/--panel-2 e --well).
 const THEMES = [
-  { id: 'light', label: 'Claro', swatch: ['#e7e5e0', '#2f6fe8'] },
-  { id: 'dark', label: 'Escuro', swatch: ['#050506', '#4f8cff'] },
-  { id: 'graphite', label: 'Grafite', swatch: ['#1c1f25', '#4f8cff'] },
+  { id: 'light', label: 'Claro', swatch: ['#e7e5e0', '#d0cdc6'] },
+  { id: 'dark', label: 'Escuro', swatch: ['#141518', '#020203'] },
+  { id: 'graphite', label: 'Grafite', swatch: ['#242830', '#0f1114'] },
 ];
 const themeBtn = document.getElementById('theme-btn');
 const themeMenu = document.getElementById('theme-menu');
@@ -449,7 +525,9 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('resize', closeThemeMenu);
 
-window.unihub?.getSettings?.().then(applyTheme).then(applyMenuLayout).catch(() => {});
+window.unihub?.getSettings?.().then(applyTheme).then(applyMenuLayout).catch(() => {})
+  // A queda do botão Temas só anima depois de abrir o app, não ao carregar.
+  .finally(() => setTimeout(() => document.body.classList.add('menu-ready'), 200));
 
 async function openSettings() {
   renderSettings((await window.unihub?.getSettings?.()) || {});

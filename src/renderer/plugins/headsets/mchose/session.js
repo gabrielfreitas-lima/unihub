@@ -1,7 +1,7 @@
 // Uma sessão por headset MCHOSE: abre o HID, pede a bateria e escuta os
 // avisos que o fone manda sozinho (carregou, desligou…).
 
-import { CommandQueue } from '../../core/command-queue.js';
+import { CommandQueue } from '../../../core/command-queue.js';
 import {
   commands, isBatteryReport, isLinkUpReport, parseBattery, parseVersion, hasPage,
   STATUS_REPORT, STATUS_USAGE_PAGE, VERSION_REPORT, VERSION_USAGE_PAGE,

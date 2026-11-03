@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSoundLabel, soundHeadsets, genericHeadsets, isHeadsetInterface, bluetoothBatteryFor, soundMatcherFor } from '../src/renderer/plugins/headsets/detect.js';
-import { isMchoseSound } from '../src/renderer/plugins/mchose/devices.js';
+import { isMchoseSound } from '../src/renderer/plugins/headsets/mchose/devices.js';
 
 const out = (deviceId, label) => ({ kind: 'audiooutput', deviceId, label });
 

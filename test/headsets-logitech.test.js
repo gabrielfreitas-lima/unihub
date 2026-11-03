@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { logitechHeadsets, batteryView, isLogitechHidpp } from '../src/renderer/plugins/headsets/logitech.js';
+import { logitechHeadsets, batteryView, isLogitechHidpp } from '../src/renderer/plugins/headsets/logitech/headsets.js';
 
 // Resultados no formato que LogitechSession.discover() devolve (exemplos,
 // ainda sem headset Logitech real para conferir).

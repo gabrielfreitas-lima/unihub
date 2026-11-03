@@ -169,6 +169,20 @@ export function hasPhysicalInput(previous, current) {
   return STICK_BYTES.some((i) => Math.abs(previous[i] - current[i]) > STICK_DEADZONE);
 }
 
+// Botões que a Gamepad API não informa (posições no array [reportId, ...dados]).
+const EXTRA_BUTTONS = [
+  { id: 'capture', byte: 7, bit: 0x02 },
+  { id: 'l4', byte: 60, bit: 0x08 },
+  { id: 'r4', byte: 60, bit: 0x10 },
+  { id: 'm', byte: 60, bit: 0x20 },
+];
+
+/** Quais desses botões estão apertados no relatório de estado do Cyclone 2. */
+export function extraButtonsPressed(report) {
+  if (!report) return [];
+  return EXTRA_BUTTONS.filter((b) => report[b.byte] & b.bit).map((b) => b.id);
+}
+
 // Bateria no relatório de estado (posições no array [reportId, ...dados]).
 const CHARGE_STATE_BYTE = 35; // 1 = carregando
 const BATTERY_BYTE = 36; // 0–100 %

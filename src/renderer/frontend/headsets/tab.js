@@ -5,7 +5,7 @@
 //   e, pelo dongle, Configurações de áudio). Fone desligado conta como não
 //   conectado.
 // - Headsets Logitech (o HID++ diz que o aparelho é do tipo "Headset") ganham
-//   nome, bateria e versão do protocolo, pelo que o plugin Logitech já sabe.
+//   nome, bateria e versão do protocolo, pelo plugin da Logitech.
 // - Fones de outras marcas (e MCHOSE por Bluetooth) ganham as Configurações de
 //   áudio, que só usam o som do sistema, as informações do aparelho e, por
 //   Bluetooth, a bateria que o Windows conhece.
@@ -17,15 +17,15 @@ import { BatteryAlerts } from '../../shared/battery.js';
 import { paintBattery, warnLowBattery } from '../../shared/battery-badge.js';
 import { headsetIcon, disconnectedHeadset } from '../../shared/headset-art.js';
 import { headsetAudioTab } from '../../shared/headset-audio.js';
-import { VENDOR_ID as MCHOSE_VID, WIRED_VENDOR_ID as MCHOSE_WIRED_VID, isMchoseDevice, isWired, modelName } from '../mchose/protocol.js';
-import { groupHeadsets, soundDeviceMatcher, connectionOf, isMchoseSound } from '../mchose/devices.js';
-import { MchoseSession } from '../mchose/session.js';
-import { VENDOR_ID as LOGITECH_VID } from '../logitech/hidpp.js';
-import { LogitechSession } from '../logitech/session.js';
-import { isLogitechHidpp, logitechHeadsets, batteryView } from './logitech.js';
+import { VENDOR_ID as MCHOSE_VID, WIRED_VENDOR_ID as MCHOSE_WIRED_VID, isMchoseDevice, isWired, modelName } from '../../plugins/headsets/mchose/protocol.js';
+import { groupHeadsets, soundDeviceMatcher, connectionOf, isMchoseSound } from '../../plugins/headsets/mchose/devices.js';
+import { MchoseSession } from '../../plugins/headsets/mchose/session.js';
+import { VENDOR_ID as LOGITECH_VID } from '../../plugins/headsets/logitech/hidpp.js';
+import { LogitechSession } from '../../plugins/headsets/logitech/session.js';
+import { isLogitechHidpp, logitechHeadsets, batteryView } from '../../plugins/headsets/logitech/headsets.js';
 import {
   isHeadsetInterface, soundHeadsets, genericHeadsets, bluetoothBatteryFor, soundMatcherFor, CONNECTION_TEXT, TELEPHONY_USAGE_PAGE,
-} from './detect.js';
+} from '../../plugins/headsets/detect.js';
 
 const BATTERY_POLL_MS = 60_000; // o fone avisa mudanças sozinho; isto é só garantia
 const AGE_REFRESH_MS = 30_000;

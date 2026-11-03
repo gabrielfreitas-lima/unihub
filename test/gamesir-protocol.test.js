@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   packet, commands, readBlockPackets, writeBlockPackets, classify, parseFirmwareVersion, parseCurrentProfile, hasPhysicalInput, REPORT_RATE_OFFSET, reportRateHz, parseBattery,
   Cmd, PACKET_SIZE, CHUNK_SIZE, PROFILE_SIZE,
-} from '../src/renderer/plugins/gamesir/protocol.js';
+} from '../src/renderer/plugins/gamepads/gamesir/protocol.js';
 
 test('todo pacote tem 64 bytes e começa com o report ID 0x0F', () => {
   const p = packet(Cmd.READ_FW_VERSION);

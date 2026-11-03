@@ -1,6 +1,6 @@
 # Protocolo de configuração GameSir
 
-Especificação usada pelo plugin `src/renderer/plugins/gamesir/`: bytes,
+Especificação usada pelo plugin `src/renderer/plugins/gamepads/gamesir/`: bytes,
 tamanhos e comportamentos da interface de configuração dos controles GameSir.
 
 Legenda:
@@ -21,12 +21,50 @@ O mesmo controle muda de PID conforme o modo. Exemplo: Cyclone 2 em modo Xbox,
 `0x1053` via cabo e `0x100B` via dongle ✓. Por isso o plugin identifica pela
 **página de uso**, não por uma tabela de PIDs.
 
+### Modos do Cyclone 2
+
+A cor do botão Home indica o modo. Para trocar, use Home junto com um dos botões
+de ação, pela posição:
+
+| Cor | Modo | Botão de ação | Plataforma | IDs no PC |
+|---|---|---|---|---|
+| Verde | XInput | esquerda | Windows 10+, Android 8+ | `0x3537` / `0x100B` via dongle, `0x1053` via cabo ✓ |
+| Vermelho | Nintendo Switch | cima | Switch | `0x057E` / `0x2009`, via dongle e via Bluetooth ✓ |
+| Azul | DualShock 4 | direita | Windows 10+, iOS 13+ | `0x054C` / `0x09CC`, "Wireless Controller", via Bluetooth ✓ |
+| Amarelo | HID | baixo | Android 8+ | (não confirmado) |
+
+Nos modos Switch e DualShock 4, os IDs são os da Nintendo e da Sony: o PC não
+distingue o controle de um Pro Controller ou de um DualShock 4, e o plugin o trata
+como gamepad genérico, sem as opções da GameSir ✓.
+
+L4 e R4 são os paddles traseiros do Cyclone 2: botões extras, customizáveis, para o
+jogador usar sem tirar os dedos dos analógicos.
+
+No modo Switch, o nome muda com a conexão: "Pro Controller" no dongle; por Bluetooth,
+"Pro Controller" na lista de aparelhos e "Wireless Gamepad" na interface de jogo ✓.
+O plugin mostra "Pro Controller" nos dois casos.
+
+### Conexões do Cyclone 2
+
+O indicador Home fica aceso e fixo quando a conexão é bem-sucedida.
+
+| Conexão | Como conectar | Sinal durante o pareamento |
+|---|---|---|
+| Cabo | cabo USB-C | nenhum |
+| Bluetooth | segurar Home + botão de ação da direita por 2 s; no PC, conectar a "Wireless Controller" | Home pisca em azul |
+| Dongle | ligar o dongle no USB; segurar Home + botão de ação da esquerda por 2 s | Home pisca em verde; o indicador do dongle pisca |
+
+Se a conexão falhar, Home + Share por 2 s volta ao pareamento. No dongle, aperte
+também o botão de pareamento dele.
+
 ## Enquadramento
 
 - **Comando (app → controle):** report `0x0F`, seguido de `cmd`, dos parâmetros e de zeros até 63 bytes. ✓
 - **Resposta (controle → app):** report `0x10`, primeiro byte = `cmd + 1`, seguido dos dados. ✓
 - **Estado (controle → app):** report `0x12`, enviado continuamente (centenas por segundo) enquanto o controle recebe o heartbeat. ✓
   - bytes 0–3: sticks (`0x80` = centro); byte 4: direcional (`0x0F` = solto); bytes 5–6: botões; bytes 7–8: gatilhos ✓
+  - byte 4, metade alta: botões de ação, `0x20` = A ✓
+  - Contando o report ID como byte 0, no Cyclone 2 em modo XInput via dongle ✓: byte 7, bit `0x02`: Captura; byte 60: `0x02` Captura, `0x08` L4, `0x10` R4, `0x20` M. A Gamepad API não informa esses quatro botões
   - bytes 9 em diante: sensores de movimento, que variam mesmo com o controle parado ✓
   - byte 35 (contando o report ID como byte 0): estado de carga, `1` = carregando ✓ (via cabo a 57%; via cabo a 100% e via dongle vem `0`)
   - byte 36: bateria em % (0–100) ✓ — um dongle sem controle manda tudo zerado
@@ -74,6 +112,16 @@ Perfil de botões (slots 1–4, 680 bytes):
 | 0 | 32 | nome do perfil (UTF-8) |
 | 32 | 32 | configurações gerais (32–33: força dos motores esquerdo/direito; 46: taxa de relatório) |
 | 64 | 16 × 7 | botões, nesta ordem: ↑ ↓ ← → LB RB L3 R3 A B X Y Home View Menu Captura |
+
+Paddles do Cyclone 2, com o mesmo formato de 7 bytes dos botões ✓:
+
+| Offset | Botão | Padrão de fábrica |
+|---|---|---|
+| 176 | L4 | `00 00 01 11 00 00 00` (código próprio `17`) |
+| 335 | R4 | `00 00 01 12 00 00 00` (código próprio `18`) |
+
+Confirmado gravando o destino A em L4 e B em R4 no perfil 4: com esse perfil ativo, os
+dois passaram a gerar A e B. Os dados são iguais nos 4 perfis.
 
 Cada botão (7 bytes):
 

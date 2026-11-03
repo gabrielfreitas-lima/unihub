@@ -5,17 +5,17 @@
 // Cada mudança vai para o teclado na hora, a partir do que foi lido: o resto
 // da configuração (teclas, macros) não muda.
 
-import { h, clear, card, button } from '../../core/dom.js';
-import { openColorPicker } from '../../shared/color-picker.js';
+import { h, clear, card, button } from '../../../core/dom.js';
+import { openColorPicker } from '../../../shared/color-picker.js';
 import {
-  EFFECTS, MAX_BRIGHTNESS, MAX_SPEED, COLORFUL, COLORS_PER_EFFECT,
-  readLedState, withEffect, effectColors, withColor,
-} from './protocol.js';
+  EFFECTS, MAX_BRIGHTNESS, MAX_SPEED, COLORFUL, COLORS_PER_EFFECT, FACTORY_COLORS,
+  readLedState, withEffect, effectColors, withColor, withFactoryColors,
+} from '../../../plugins/teclados/aula/protocol.js';
 
 const SPEED_TEXT = ['Muito lenta', 'Lenta', 'Média', 'Rápida', 'Muito rápida'];
 
 /**
- * @param {import('./session.js').AulaSession} session
+ * @param {import('../../../plugins/teclados/aula/session.js').AulaSession} session
  * @param {{ maxBrightness?: number }} [o]  brilho máximo do modelo (F75: 9; F87/F99: 4)
  */
 export function aulaLightsTab(session, { maxBrightness = MAX_BRIGHTNESS } = {}) {
@@ -96,6 +96,16 @@ export function aulaLightsTab(session, { maxBrightness = MAX_BRIGHTNESS } = {}) 
     });
   }
 
+  function restoreColors() {
+    table = withFactoryColors(table, readLedState(block).effect);
+    render();
+    const [t, b] = [table, block];
+    save(async () => {
+      await session.writeColors(t);
+      await session.writeLed(b);
+    });
+  }
+
   function render() {
     const { effect, brightness, speed, colorMode } = readLedState(block);
     const known = EFFECTS.find((e) => e.code === effect);
@@ -149,7 +159,10 @@ export function aulaLightsTab(session, { maxBrightness = MAX_BRIGHTNESS } = {}) 
       !showColors ? null : h('div', { class: 'aula-field' },
         h('span', {}, 'Cor'),
         h('div', { class: 'light-swatches aula-swatches' }, swatches, colorful),
-        h('small', { class: 'muted' }, `Clique numa cor para usar; clique de novo para trocá-la. São ${COLORS_PER_EFFECT} cores guardadas por efeito.`)),
+        h('small', { class: 'muted' }, `Clique numa cor para usar; clique de novo para trocá-la. São ${COLORS_PER_EFFECT} cores guardadas por efeito.`),
+        h('div', { class: 'row' }, button('Restaurar cores', restoreColors, {
+          disabled: colors.every((hex, i) => hex === FACTORY_COLORS[i]),
+        }))),
       showColors ? null : h('p', { class: 'muted small aula-field' }, 'Este efeito usa as próprias cores (colorido).'));
 
     clear(root, h('div', { class: 'aula-lights-grid' }, effects, settings), status);

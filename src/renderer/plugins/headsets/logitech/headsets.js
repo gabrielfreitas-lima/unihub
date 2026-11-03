@@ -1,10 +1,9 @@
-// Headsets Logitech na aba Headsets, pelo que o plugin Logitech já sabe do
-// HID++ 2.0: nome, tipo, versão do protocolo e bateria. Um aparelho entra
+// Headsets Logitech, pelo que este plugin sabe do HID++ 2.0: nome, tipo, versão do protocolo e bateria. Um aparelho entra
 // aqui quando o próprio HID++ diz que ele é do tipo "Headset".
 // Ainda não testado com headsets Logitech.
 
-import { VENDOR_ID, USAGE_PAGES, DIRECT_DEVICE } from '../logitech/hidpp.js';
-import { isHidppEndpoint } from '../logitech/session.js';
+import { VENDOR_ID, USAGE_PAGES, DIRECT_DEVICE } from './hidpp.js';
+import { isHidppEndpoint } from './session.js';
 
 export const HEADSET_TYPE = 'Headset';
 

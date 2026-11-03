@@ -53,6 +53,8 @@ export const MAX_SPEED = 4;
 /** Modo de cor: 0 a 6 = uma das 7 cores do efeito; 7 = colorido. */
 export const COLORFUL = 7;
 export const COLORS_PER_EFFECT = 7;
+// Cores de fábrica, iguais em todos os efeitos que têm cor.
+export const FACTORY_COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffffff'];
 
 // --- Bloco de luz ---------------------------------------------------------------
 
@@ -136,6 +138,11 @@ export function withColor(table, code, index, hex) {
   out[COLOR_TABLE_MARK_AT] = MARK[0];
   out[COLOR_TABLE_MARK_AT + 1] = MARK[1];
   return out;
+}
+
+/** Tabela pronta para gravar, com as cores do efeito de volta às de fábrica. */
+export function withFactoryColors(table, code) {
+  return FACTORY_COLORS.reduce((out, hex, i) => withColor(out, code, i, hex), table);
 }
 
 // --- Pacotes pelo receptor (relatório 0x13, 19 bytes sem o ID) -----------------

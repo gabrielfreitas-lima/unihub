@@ -15,18 +15,18 @@
 // também a aba Luzes (efeito, brilho, velocidade e cores) e, pelo dongle, a
 // bateria (no cabo ele está carregando). A aba Luzes usa os
 // comandos da AULA: só aparece para teclados AULA. Outra marca de teclado
-// precisa do próprio protocolo em plugins/<marca>/.
+// precisa do próprio plugin em plugins/teclados/<marca>/.
 
 import { h, clear, subTabs } from '../../core/dom.js';
 import { infoCard, vidPidRow } from '../../shared/info-card.js';
 import { BatteryAlerts } from '../../shared/battery.js';
 import { paintBattery, warnLowBattery } from '../../shared/battery-badge.js';
 import { keyboardIcon, disconnectedKeyboard } from '../../shared/keyboard-art.js';
-import { isKeyboardOrMouse, keyboardGroups, systemKeyboards, brandOf, KEYBOARD_FILTERS } from './detect.js';
+import { isKeyboardOrMouse, keyboardGroups, systemKeyboards, brandOf, KEYBOARD_FILTERS } from '../../plugins/teclados/detect.js';
 import { keyTester } from './key-tester.js';
-import { MODELS, savedModel, saveModel, aulaName, aulaTester, aulaMaxBrightness } from '../aula/devices.js';
-import { AulaSession, configInterface } from '../aula/session.js';
-import { aulaLightsTab } from '../aula/lights-tab.js';
+import { MODELS, savedModel, saveModel, aulaName, aulaTester, aulaMaxBrightness } from '../../plugins/teclados/aula/devices.js';
+import { AulaSession, configInterface } from '../../plugins/teclados/aula/session.js';
+import { aulaLightsTab } from './aula/lights-tab.js';
 
 const BATTERY_POLL_MS = 60_000;
 const SYSTEM_REFRESH_MS = 1500; // espera o Windows terminar de instalar o aparelho
@@ -56,7 +56,7 @@ export default {
   id: 'keyboards',
   name: 'Teclados',
   icon: keyboardIcon, // ícone na barra lateral
-  tagline: 'Teclados de qualquer marca, com informações e teste de teclas',
+  tagline: 'Teclados de qualquer marca, com teste de teclas e opções extras para AULA',
   status: 'beta',
   filters: KEYBOARD_FILTERS,
 

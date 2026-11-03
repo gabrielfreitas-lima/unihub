@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveNames, isGenericName, cleanName, splitDongles } from '../src/renderer/plugins/gamesir/names.js';
+import { resolveNames, isGenericName, cleanName, splitDongles } from '../src/renderer/plugins/gamepads/gamesir/names.js';
 
 function memoryStorage() {
   const data = {};

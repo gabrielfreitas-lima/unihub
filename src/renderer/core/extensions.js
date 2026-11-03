@@ -1,4 +1,4 @@
-// Quais extensões de hub o usuário instalou. Só elas viram abas no cabeçalho.
+// Quais extensões de hub o usuário instalou. Só elas viram abas no menu.
 // Fica salvo neste computador (localStorage); sem armazenamento, nada é lembrado.
 
 const STORAGE_KEY = 'unihub.installedHubs';

@@ -1,10 +1,10 @@
 // Sub-abas específicas dos controles GameSir (além de Luzes e Vibração).
 
-import { h, card, button } from '../../core/dom.js';
-import { toHex } from '../../core/bytes.js';
-import { PROFILE_SLOTS, REPORT_RATES } from './protocol.js';
-import { BUTTONS, TARGETS, parseMapping, buildMapping, countRemapped, targetName } from './mapping.js';
-import { infoCard, vidPidRow } from '../../shared/info-card.js';
+import { h, card, button } from '../../../core/dom.js';
+import { toHex } from '../../../core/bytes.js';
+import { PROFILE_SLOTS, REPORT_RATES } from '../../../plugins/gamepads/gamesir/protocol.js';
+import { BUTTONS, PADDLES, TARGETS, parseMapping, parsePaddle, buildMapping, buildPaddle, countRemapped, targetName } from '../../../plugins/gamepads/gamesir/mapping.js';
+import { infoCard, vidPidRow } from '../../../shared/info-card.js';
 
 export function deviceTab(session, label, vidPid, model, ctx) {
   const firmware = h('strong', {}, '…');
@@ -104,26 +104,38 @@ export function profilesTab(session, ctx, model) {
       ctx.toast(`Exportar perfil ${slot}: ${err.message}`, 'error');
     }
   }
-  return h('div', { class: 'device-cards' },
+  const exportCard = card('Exportar perfis',
+    h('p', { class: 'muted small' }, 'Guarda uma cópia de um perfil do controle num arquivo no computador. Isto não muda nada no controle: o mapeamento já é salvo sozinho.'),
+    h('div', { class: 'row' }, PROFILE_SLOTS.map((n) => button(`Exportar perfil ${n}`, () => backup(n)))),
+    status);
+  exportCard.classList.add('export-card');
+  return h('div', { class: 'device-cards mapping-page' },
     MAPPING_MODELS.includes(model)
       ? mappingEditor(session, ctx)
       : card('Mapeamento de botões', h('p', { class: 'muted' }, 'Ainda não disponível para este modelo.')),
-    card('Exportar perfis',
-      h('p', { class: 'muted small' }, 'Guarda uma cópia de um perfil do controle num arquivo no computador. Isto não muda nada no controle: o mapeamento já é salvo sozinho.'),
-      h('div', { class: 'row' }, PROFILE_SLOTS.map((n) => button(`Exportar perfil ${n}`, () => backup(n)))),
-      status),
+    exportCard,
   );
 }
 
 /** Modelos com o mapeamento confirmado com hardware. */
 const MAPPING_MODELS = ['cyclone2'];
 
+// Grupos da tela de mapeamento, por onde o botão fica no controle.
+const MAPPING_GROUPS = [
+  { title: 'Botões de ação', ids: ['a', 'b', 'x', 'y'] },
+  { title: 'Direcional', ids: ['up', 'down', 'left', 'right'] },
+  { title: 'Ombros e sticks', ids: ['lb', 'rb', 'l3', 'r3'] },
+  { title: 'Botões centrais', ids: ['home', 'view', 'menu', 'capture'] },
+  { title: 'Paddles traseiros', ids: ['l4', 'r4'] },
+];
+
 /** Editor: escolhe o perfil e, para cada botão, o que ele faz. Grava na hora. */
 function mappingEditor(session, ctx) {
   let slot = null; // perfil em edição
   let active = null; // perfil que o controle está usando
   let bytes = null; // trecho atual no controle
-  let entries = null;
+  let paddleBytes = null; // 7 bytes de cada paddle no controle
+  let entries = null; // os 16 botões e, depois deles, os paddles
   let busy = false;
   const body = h('div', { class: 'mapping' }, h('p', { class: 'muted' }, 'Lendo o perfil…'));
   const status = h('span', { class: 'muted small' });
@@ -184,7 +196,10 @@ function mappingEditor(session, ctx) {
   function render() {
     renderProfiles();
     if (!entries) return;
-    body.replaceChildren(...BUTTONS.map((b, i) => {
+    const keys = [...BUTTONS, ...PADDLES];
+    const row = (id) => {
+      const i = keys.findIndex((k) => k.id === id);
+      const b = keys[i];
       const entry = entries[i];
       const select = h('select', {
         class: 'map-select' + (entry.target !== null ? ' changed' : ''),
@@ -202,7 +217,16 @@ function mappingEditor(session, ctx) {
         h('span', { class: 'map-key' }, b.label),
         h('span', { class: 'map-arrow' }, '→'),
         select);
-    }));
+    };
+    body.replaceChildren(...MAPPING_GROUPS.map((g) => h('section', { class: 'map-group' },
+      h('h4', {}, g.title),
+      g.ids.map(row))));
+  }
+
+  async function readEntries(n) {
+    bytes = await session.readMapping(n);
+    paddleBytes = await session.readPaddles(n);
+    entries = [...parseMapping(bytes), ...PADDLES.map((p, i) => parsePaddle(p, paddleBytes[i]))];
   }
 
   async function load(n) {
@@ -211,8 +235,7 @@ function mappingEditor(session, ctx) {
     status.textContent = '';
     render();
     try {
-      bytes = await session.readMapping(n);
-      entries = parseMapping(bytes);
+      await readEntries(n);
     } catch (err) {
       entries = null;
       body.replaceChildren(h('p', { class: 'error' }, `Não foi possível ler o perfil ${n}: ${err.message}`));
@@ -226,10 +249,11 @@ function mappingEditor(session, ctx) {
     status.textContent = 'Gravando…';
     render();
     try {
-      const nextBytes = buildMapping(next);
-      await session.writeMapping(slot, bytes, nextBytes);
-      bytes = await session.readMapping(slot); // confirma lendo de volta
-      entries = parseMapping(bytes);
+      await session.writeMapping(slot, bytes, buildMapping(next.slice(0, BUTTONS.length)));
+      for (const [i, paddle] of PADDLES.entries()) {
+        await session.writePaddle(slot, paddle, paddleBytes[i], buildPaddle(paddle, next[BUTTONS.length + i]));
+      }
+      await readEntries(slot); // confirma lendo de volta
       status.textContent = `${message} · salvo no perfil ${slot}`;
     } catch (err) {
       status.textContent = '';

@@ -1,7 +1,17 @@
 # Como adicionar um hub (fabricante)
 
-Cada fabricante é um plugin em `src/renderer/plugins/<fabricante>/` e vira
-uma aba. Os plugins não se conhecem entre si.
+O código é dividido em duas partes:
+
+- **`src/renderer/plugins/<tipo>/<marca>/`: o plugin da marca.** É o backend:
+  tudo o que se sabe sobre os aparelhos daquela marca (protocolo, sessão, nomes,
+  modelos), sem nada de tela. Exemplos: `plugins/gamepads/gamesir/`,
+  `plugins/teclados/aula/`.
+- **`src/renderer/frontend/<tipo>/`: a aba do tipo de aparelho.** É a tela. As
+  sub-abas de uma marca ficam em `frontend/<tipo>/<marca>/`.
+
+O app é organizado por tipo de aparelho: cada tipo é uma aba, e a marca entra
+dentro dela. Um plugin não importa a tela nem o plugin de outra marca
+(`test/arquitetura.test.js` confere isso).
 
 ## 1. Descubra o dispositivo
 
@@ -19,22 +29,64 @@ Comece pelos comandos de leitura (versão, bateria) e só depois pelos de grava�
 
 ## 3. Escreva o protocolo como funções puras
 
-`protocol.js`: funções que montam e interpretam bytes, sem tocar em hardware.
-Teste com `npm test` usando bytes reais (veja `test/gamesir-protocol.test.js`).
+`plugins/<tipo>/<marca>/protocol.js`: funções que montam e interpretam bytes,
+sem tocar em hardware. Teste com `npm test` usando bytes reais (veja
+`test/gamesir-protocol.test.js`).
 
 ## 4. Crie a sessão
 
-`session.js`: abre o `HIDDevice`, escuta `inputreport` e envia comandos pela
-`CommandQueue` (um por vez, com confirmação e reenvio).
+`plugins/<tipo>/<marca>/session.js`: abre o `HIDDevice`, escuta `inputreport` e
+envia comandos pela `CommandQueue` (um por vez, com confirmação e reenvio).
 
-## 5. Crie o plugin
+## 5. Ligue a marca na aba do tipo
 
-`plugin.js` exporta:
+Se o tipo de aparelho já existe, mostre as opções da marca na aba dele:
+
+### Gamepads
+
+Todos os controles aparecem na aba **Gamepads** (`frontend/gamepads/tab.js`).
+Para dar opções extras a uma marca, faça como a GameSir: protocolo e sessão em
+`plugins/gamepads/gamesir/`, sub-abas em `frontend/gamepads/gamesir/`, ligadas na
+aba para os modelos conhecidos.
+
+### Headsets
+
+Todos os fones aparecem na aba **Headsets** (`frontend/headsets/tab.js`). Fones
+de qualquer marca são achados pela interface HID de telefonia (`0x0B`) e pela
+lista de som do sistema (que mostra também os Bluetooth), em
+`plugins/headsets/detect.js`, e aparecem só com as informações do aparelho. Para
+dar opções extras a uma marca, faça como a MCHOSE: protocolo e sessão em
+`plugins/headsets/mchose/` e ligue na aba para os modelos conhecidos.
+
+### Teclados
+
+Todos os teclados aparecem na aba **Teclados** (`frontend/teclados/tab.js`).
+O aparelho é achado pela interface HID de teclado (página `0x01`, uso `0x06`),
+agrupada por VID:PID em `plugins/teclados/detect.js`. Controles e receptores de
+mouse também têm essa interface, por isso ficam de fora: controle sempre, e
+aparelho com interface de mouse só entra se o nome disser que é teclado.
+O WebHID não mostra o teclado do notebook (PS/2 ou interno) e não diz se um
+teclado é Bluetooth: o processo principal lista os teclados do Windows
+(`system-keyboards`), e `systemKeyboards()` em `detect.js` marca os Bluetooth e
+acrescenta o do notebook e os Bluetooth fora do WebHID. Teclado USB vem só do
+WebHID. O Chromium não deixa ler as teclas pelo WebHID: o teste de teclas usa os
+eventos de teclado da página.
+
+A aba **Luzes** que existe hoje é **só da AULA série F**
+(`plugins/teclados/aula/`, tela em `frontend/teclados/aula/`): os comandos, a
+lista de efeitos e as posições dos bytes são da AULA e não servem para outras
+marcas. Para dar luzes a outra marca, crie `plugins/teclados/<marca>/` e mostre
+a aba só para os teclados dessa marca, como a aba Teclados faz com
+`brand === 'aula'`.
+
+## 6. Tipo de aparelho novo
+
+Só se o tipo ainda não existe: crie `frontend/<tipo>/tab.js`, que exporta:
 
 ```js
 export default {
-  id: 'meufabricante',            // único
-  name: 'Meu Fabricante',         // título da aba
+  id: 'meutipo',                  // único
+  name: 'Meu Tipo',               // título da aba
   icon: () => svgElement,         // opcional: ícone na barra lateral (senão, a 1ª letra do nome)
   tagline: 'Descrição curta',
   status: 'beta',                 // 'beta' | 'planned' | 'tool'
@@ -57,54 +109,12 @@ export default {
 
 `ctx` tem `ctx.hid` (gerenciador HID) e `ctx.toast(mensagem, 'error'|'info')`.
 
-### Gamepads
+Importe a aba em `src/renderer/frontend/index.js`.
 
-Controles de jogo não ganham aba própria: todos aparecem na aba **Gamepads**
-(`plugins/gamepads/plugin.js`). Para dar opções extras a uma marca de
-controle, faça como a GameSir: escreva o protocolo, a sessão e as sub-abas em
-`plugins/<marca>/` e ligue no plugin Gamepads para os modelos conhecidos.
-
-### Headsets
-
-Fones e headsets também não ganham aba por marca: todos aparecem na aba
-**Headsets** (`plugins/headsets/plugin.js`). Fones de qualquer marca são
-achados pela interface HID de telefonia (`0x0B`) e pela lista de som do
-sistema (que mostra também os Bluetooth), em `plugins/headsets/detect.js`, e
-aparecem só com as informações do aparelho. Para dar opções extras a uma
-marca, faça como a MCHOSE: protocolo e sessão em `plugins/<marca>/` e ligue
-na aba Headsets para os modelos conhecidos.
-
-### Teclados
-
-Teclados também ficam numa aba só, **Teclados** (`plugins/keyboards/plugin.js`).
-O aparelho é achado pela interface HID de teclado (página `0x01`, uso `0x06`),
-agrupada por VID:PID em `plugins/keyboards/detect.js`. Controles e receptores de
-mouse também têm essa interface, por isso ficam de fora: controle sempre, e
-aparelho com interface de mouse só entra se o nome disser que é teclado.
-O WebHID não mostra o teclado do notebook (PS/2 ou interno) e não diz se um
-teclado é Bluetooth: o processo principal lista os teclados do Windows
-(`system-keyboards`), e `systemKeyboards()` em `detect.js` marca os Bluetooth e
-acrescenta o do notebook e os Bluetooth fora do WebHID. Teclado USB vem só do
-WebHID. O
-Chromium não deixa ler as teclas pelo WebHID: o teste de teclas usa os eventos
-de teclado da página. Opções de uma marca (luzes, macros) entram como na GameSir
-e na MCHOSE: protocolo e sessão em `plugins/<marca>/`, ligados na aba Teclados.
-
-A aba **Luzes** que existe hoje é **só da AULA série F** (`plugins/aula/`): os
-comandos, a lista de efeitos e as posições dos bytes são da AULA e não servem
-para outras marcas. Para dar luzes a outra marca, escreva o protocolo dela em
-`plugins/<marca>/` e mostre a aba só para os teclados dessa marca, como o
-plugin Teclados faz com `brand === 'aula'`.
-
-## 6. Registre
-
-Importe o plugin em `src/renderer/plugins/index.js`.
-
-O plugin aparece na janela **Plugins** (Configurações › "Adicionar plugin").
-Ele só vira uma aba no cabeçalho depois que o usuário clica em "Adicionar".
-Plugins com `status: 'planned'` aparecem como "Em breve" e não podem ser
-adicionados (hoje não há nenhum: o app é organizado por tipo de aparelho, não
-por marca); os com `status: 'tool'` ficam na seção "Avançado".
+Ela aparece na janela **Abas** (Configurações › "Adicionar aba") e só vira
+uma aba no menu depois que o usuário clica em "Adicionar". Com `status: 'planned'`
+aparece como "Em breve" e não pode ser adicionada (hoje não há nenhuma); com
+`status: 'tool'` fica na seção "Avançado".
 
 ## Dicas
 

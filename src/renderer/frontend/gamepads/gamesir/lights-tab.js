@@ -3,14 +3,14 @@
 // Fluxo: lê o bloco de luz (slot 32) do controle, edita um modelo em memória
 // e, a cada mudança, grava só o trecho de bytes que mudou.
 
-import { h, clear, card, button } from '../../core/dom.js';
-import { controllerSvg } from '../../shared/controller-art.js';
-import { openColorPicker } from '../../shared/color-picker.js';
-import { PROFILE_SLOTS } from './protocol.js';
+import { h, clear, card, button } from '../../../core/dom.js';
+import { controllerSvg, XBOX_PAD_PATH } from '../../../shared/controller-art.js';
+import { openColorPicker } from '../../../shared/color-picker.js';
+import { PROFILE_SLOTS } from '../../../plugins/gamepads/gamesir/protocol.js';
 import {
   LIGHT_SLOT, LIGHT_BLOCK_SIZE, EDITABLE_ANIMATIONS, MAX_KEYFRAMES, MAX_SPEED, STANDBY_OPTIONS,
   LED_LAYOUTS, PRESETS, parseLightBlock, buildLightBlock, changedRange, applyPreset, moveFrame,
-} from './lights.js';
+} from '../../../plugins/gamepads/gamesir/lights.js';
 
 const ROMAN = ['I', 'II', 'III', 'IV'];
 const SAVE_DELAY_MS = 250;
@@ -253,10 +253,10 @@ export function lightsTab(session, ctx, model) {
     const colors = layout.map((l) => a.frames[state.frame][l.led]);
     // 2 e 4 encostados no corpo (borda de cima e recorte de baixo);
     // 1 e 3 sobre as alças, onde a mão segura.
-    const spots = { left: [70, 212], top: [200, 56], right: [330, 212], bottom: [200, 226] };
-    const { svg, add: el } = controllerSvg('pad-diagram');
+    const spots = { left: [50, 196], top: [200, 64], right: [350, 196], bottom: [200, 242] };
+    const { svg, add: el } = controllerSvg('pad-diagram', XBOX_PAD_PATH);
     dots = layout.map((light, i) => {
-      const [x, y] = light.position ? spots[light.position] : [80 + i * 60, 285];
+      const [x, y] = light.position ? spots[light.position] : [80 + i * 60, 308];
       const dot = el('circle', { cx: x, cy: y, r: 16, fill: colors[i], class: 'pad-led' + (state.light === i ? ' selected' : '') });
       dot.addEventListener('click', () => pickColor(a, i, dot));
       const t = el('text', { x, y: y + 5, class: 'pad-led-label', fill: isLight(colors[i]) ? '#111' : '#fff' });

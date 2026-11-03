@@ -5,7 +5,7 @@
 // com APIs padrão da web (WebHID, Gamepad API e Web Audio), então o app não
 // precisa de módulos nativos nem de DLLs.
 
-const { app, BrowserWindow, Menu, Tray, nativeImage, session, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, Tray, nativeImage, screen, session, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
@@ -163,12 +163,22 @@ ipcMain.handle('settings:set', (_event, key, value) => {
   return settings;
 });
 
+// Tamanho inicial: cabem duas linhas de cartões quadrados no Início, sem rolar.
+const WINDOW_WIDTH = 1100;
+const WINDOW_HEIGHT = 920;
+const MIN_WINDOW_WIDTH = 960;
+
+/** Tamanho inicial, com a mesma proporção em telas que não comportam a altura toda. */
+function initialWindowSize() {
+  const height = Math.min(WINDOW_HEIGHT, screen.getPrimaryDisplay().workAreaSize.height);
+  return { width: Math.max(MIN_WINDOW_WIDTH, Math.round(height * WINDOW_WIDTH / WINDOW_HEIGHT)), height };
+}
+
 function createWindow({ hidden = false } = {}) {
   const win = new BrowserWindow({
     show: !hidden,
-    width: 1280,
-    height: 820,
-    minWidth: 960,
+    ...initialWindowSize(),
+    minWidth: MIN_WINDOW_WIDTH,
     minHeight: 600,
     title: 'UniHub',
     backgroundColor: themeColors().bg,

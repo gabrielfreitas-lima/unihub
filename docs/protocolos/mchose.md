@@ -1,6 +1,6 @@
 # Protocolo HID dos headsets MCHOSE
 
-Especificação usada pelo plugin `src/renderer/plugins/mchose/`.
+Especificação usada pelo plugin `src/renderer/plugins/headsets/mchose/`.
 
 Legenda:
 - **✓**: confirmado com hardware (MCHOSE V9 PRO, pelo dongle e pelo cabo, pela WebHID).

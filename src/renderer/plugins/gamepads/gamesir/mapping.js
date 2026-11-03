@@ -25,6 +25,15 @@ export const BUTTONS = [
   { id: 'capture', label: 'Captura', name: 'Captura', code: 16 },
 ];
 
+/**
+ * Paddles traseiros do Cyclone 2. Ficam fora do trecho dos 16 botões, cada um no
+ * seu offset do perfil, e o padrão de fábrica é "mapeado para o próprio código".
+ */
+export const PADDLES = [
+  { id: 'l4', label: 'L4', name: 'L4', code: 17, offset: 176 },
+  { id: 'r4', label: 'R4', name: 'R4', code: 18, offset: 335 },
+];
+
 /** Para onde um botão pode ser mapeado. */
 export const TARGETS = [
   ...BUTTONS.map((b) => ({ code: b.code, name: b.name })),
@@ -75,6 +84,23 @@ export function buildMapping(entries) {
     out.set(bytes, i * KEY_SIZE);
   });
   return out;
+}
+
+/** Lê um paddle a partir dos seus 7 bytes. Mesmo modelo de `parseMapping`. */
+export function parsePaddle(paddle, bytes) {
+  if (bytes.length < KEY_SIZE) throw new Error('Trecho de mapeamento incompleto');
+  const raw = Array.from(bytes.slice(0, KEY_SIZE));
+  const mapped = raw[2] === 1 && raw[3] !== 0;
+  return { id: paddle.id, target: mapped && raw[3] !== paddle.code ? raw[3] : null, raw };
+}
+
+/** Monta os 7 bytes de um paddle (preserva turbo e "alternar"). */
+export function buildPaddle(paddle, entry) {
+  const bytes = [...entry.raw];
+  bytes[2] = 1;
+  bytes[3] = entry.target === null ? paddle.code : entry.target;
+  bytes[4] = bytes[5] = 0;
+  return Uint8Array.from(bytes);
 }
 
 /** Quantos botões estão remapeados. */

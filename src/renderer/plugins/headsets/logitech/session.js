@@ -1,7 +1,7 @@
 // Sessão HID++ sobre uma interface Logitech (receptor ou dispositivo USB).
 
-import { CommandQueue } from '../../core/command-queue.js';
-import { withReportId } from '../../core/bytes.js';
+import { CommandQueue } from '../../../core/command-queue.js';
+import { withReportId } from '../../../core/bytes.js';
 import {
   SHORT, LONG, DIRECT_DEVICE, RECEIVER_SLOTS, Feature, DEVICE_TYPES, HidppError,
   request, isReplyTo, payload, root, parsePing, parseFeatureIndex, decodeName,

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { keyboardGroups, isKeyboardOrMouse, brandOf } from '../src/renderer/plugins/keyboards/detect.js';
-import { keyboardLayout, defaultLayout, keyLabel } from '../src/renderer/plugins/keyboards/layouts.js';
-import { aulaName, aulaTester, aulaMaxBrightness } from '../src/renderer/plugins/aula/devices.js';
+import { keyboardGroups, isKeyboardOrMouse, brandOf } from '../src/renderer/plugins/teclados/detect.js';
+import { keyboardLayout, defaultLayout, keyLabel } from '../src/renderer/plugins/teclados/layouts.js';
+import { aulaName, aulaTester, aulaMaxBrightness } from '../src/renderer/plugins/teclados/aula/devices.js';
 
 const dev = (productName, vendorId, productId, usages) => ({
   productName, vendorId, productId,

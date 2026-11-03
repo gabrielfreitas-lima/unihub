@@ -1,7 +1,7 @@
 # Logitech HID++ 2.0
 
-Código em `src/renderer/plugins/logitech/` (`hidpp.js` e `session.js`), usado
-pelo plugin Headsets para os headsets Logitech. O HID++ tem documentação
+Código em `src/renderer/plugins/headsets/logitech/` (`hidpp.js` e `session.js`), usado
+pela aba Headsets para os headsets Logitech. O HID++ tem documentação
 pública da própria Logitech e de projetos como Solaar e libratbag. O UniHub
 implementa só o necessário, a partir dessas especificações.
 
@@ -40,7 +40,7 @@ Interfaces: Usage Page `0xFF00` (receptores Unifying/Bolt/Lightspeed) ou `0xFF43
 Aparelhos que o HID++ informa como tipo **Headset** (feature `0x0005`, função 2,
 valor 8) também aparecem na aba **Headsets**, com nome, bateria e versão do
 protocolo, e com as Configurações de áudio (o som do fone é achado pelo VID:PID
-da interface). O código fica em `src/renderer/plugins/headsets/logitech.js`.
+da interface). O código fica em `src/renderer/plugins/headsets/logitech/headsets.js`.
 Ainda não testado com um headset Logitech.
 
 ## Próximos passos

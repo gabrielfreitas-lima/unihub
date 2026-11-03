@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   commands, parseBattery, parseVersion, isBatteryReport, isLinkUpReport, isMchoseDevice, modelName, PACKET_SIZE, STATUS_REPORT,
-} from '../src/renderer/plugins/mchose/protocol.js';
-import { groupHeadsets, soundDeviceMatcher, isMchoseSound } from '../src/renderer/plugins/mchose/devices.js';
+} from '../src/renderer/plugins/headsets/mchose/protocol.js';
+import { groupHeadsets, soundDeviceMatcher, isMchoseSound } from '../src/renderer/plugins/headsets/mchose/devices.js';
 import { pickHeadsetDevices } from '../src/renderer/shared/headset-audio.js';
 
 const bytes = (...b) => new Uint8Array([...b, ...new Array(PACKET_SIZE - b.length).fill(0)]);
