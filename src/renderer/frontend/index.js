@@ -5,6 +5,7 @@
 import gamepads from './gamepads/tab.js';
 import headsets from './headsets/tab.js';
 import keyboards from './teclados/tab.js';
+import mouses from './mouses/tab.js';
 import hidExplorer from './hid-explorer.js';
 
-export const plugins = [gamepads, headsets, keyboards, hidExplorer];
+export const plugins = [gamepads, headsets, keyboards, mouses, hidExplorer];
