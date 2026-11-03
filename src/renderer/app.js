@@ -165,7 +165,7 @@ function renderOverview(container) {
 
   const cards = installed.flatMap(deviceCards);
   clear(container,
-    h('div', { class: 'overview-head' }, h('h2', {}, 'Início')),
+    h('div', { class: 'overview-head' }, h('h2', {}, 'Seus periféricos')),
     !hid.available ? h('div', { class: 'error' }, 'WebHID indisponível neste ambiente.') : null,
     cards.length
       ? h('div', { class: 'home-grid' }, cards)
