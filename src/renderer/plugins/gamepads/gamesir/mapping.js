@@ -34,19 +34,32 @@ export const PADDLES = [
   { id: 'r4', label: 'R4', name: 'R4', code: 18, offset: 335 },
 ];
 
+/**
+ * Gatilhos LT e RT do Cyclone 2. A entrada de 7 bytes (mesmo formato dos botões)
+ * fica dentro do bloco de ajustes de cada gatilho, 3 bytes depois do início dele.
+ * Como nos 16 botões, "faz a própria função" é não mapeado (byte 2 = 0).
+ */
+export const TRIGGERS = [
+  { id: 'lt', label: 'LT', name: 'LT', code: 19, offset: 499, selfMapped: false },
+  { id: 'rt', label: 'RT', name: 'RT', code: 20, offset: 527, selfMapped: false },
+];
+
+/** Botões fora do trecho dos 16, cada um no seu offset: paddles e gatilhos. */
+export const EXTRA_KEYS = [...PADDLES, ...TRIGGERS];
+
 /** Para onde um botão pode ser mapeado. */
 export const TARGETS = [
   ...BUTTONS.map((b) => ({ code: b.code, name: b.name })),
   { code: 19, name: 'LT' },
   { code: 20, name: 'RT' },
-  { code: 21, name: 'Stick esquerdo ↑' },
-  { code: 22, name: 'Stick esquerdo ↓' },
-  { code: 23, name: 'Stick esquerdo ←' },
-  { code: 24, name: 'Stick esquerdo →' },
-  { code: 25, name: 'Stick direito ↑' },
-  { code: 26, name: 'Stick direito ↓' },
-  { code: 27, name: 'Stick direito ←' },
-  { code: 28, name: 'Stick direito →' },
+  { code: 21, name: 'Analógico esquerdo ↑' },
+  { code: 22, name: 'Analógico esquerdo ↓' },
+  { code: 23, name: 'Analógico esquerdo ←' },
+  { code: 24, name: 'Analógico esquerdo →' },
+  { code: 25, name: 'Analógico direito ↑' },
+  { code: 26, name: 'Analógico direito ↓' },
+  { code: 27, name: 'Analógico direito ←' },
+  { code: 28, name: 'Analógico direito →' },
   { code: DISABLED, name: 'Desativado' },
 ];
 
@@ -94,11 +107,20 @@ export function parsePaddle(paddle, bytes) {
   return { id: paddle.id, target: mapped && raw[3] !== paddle.code ? raw[3] : null, raw };
 }
 
-/** Monta os 7 bytes de um paddle (preserva turbo e "alternar"). */
+/**
+ * Monta os 7 bytes de um paddle ou gatilho (preserva turbo e "alternar").
+ * Paddle sem remapeamento fica mapeado para o próprio código (padrão de fábrica);
+ * gatilho (selfMapped: false) fica não mapeado.
+ */
 export function buildPaddle(paddle, entry) {
   const bytes = [...entry.raw];
-  bytes[2] = 1;
-  bytes[3] = entry.target === null ? paddle.code : entry.target;
+  if (entry.target === null && paddle.selfMapped === false) {
+    bytes[2] = 0;
+    bytes[3] = 0;
+  } else {
+    bytes[2] = 1;
+    bytes[3] = entry.target === null ? paddle.code : entry.target;
+  }
   bytes[4] = bytes[5] = 0;
   return Uint8Array.from(bytes);
 }

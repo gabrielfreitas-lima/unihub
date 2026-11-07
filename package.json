@@ -1,12 +1,12 @@
 {
   "name": "unihub",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Um só app para configurar periféricos de vários fabricantes: controles, headsets e teclados, de qualquer marca.",
   "author": "Gabriel Freitas",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gabrielfreitas-lima/unihub.git"
+    "url": "https://github.com/garborus/unihub.git"
   },
   "type": "module",
   "main": "src/main/main.cjs",
@@ -20,7 +20,7 @@
     "electron-builder": "26.0.12"
   },
   "build": {
-    "appId": "io.github.gabrielfreitas-lima.unihub",
+    "appId": "io.github.garborus.unihub",
     "productName": "UniHub",
     "directories": {
       "output": "dist",
@@ -29,6 +29,17 @@
     "files": [
       "src/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "native/audio-mix",
+        "to": "native/audio-mix",
+        "filter": [
+          "build/*.dll",
+          "build/*.exe",
+          "*.ps1"
+        ]
+      }
     ],
     "win": {
       "target": [

@@ -25,7 +25,6 @@ export function lightsTab(session, ctx, model) {
     frame: 0,
     light: 0,
     playing: true,
-    copying: false,
     preset: null,
     status: '',
   };
@@ -104,7 +103,7 @@ export function lightsTab(session, ctx, model) {
     if (state.frame >= a.keyFrames) state.frame = a.keyFrames - 1;
     clear(root,
       h('div', { class: 'lights-panel' },
-        animationsSection(a),
+        animationsSection(),
         presetsSection(a),
         framesSection(a),
         lightsSection(a),
@@ -128,22 +127,36 @@ export function lightsTab(session, ctx, model) {
     renderStatus();
   }
 
-  function animationsSection(a) {
-    return section('Animações', state.copying ? 'Escolha para qual animação copiar' : 'A animação escolhida é a que fica ativa no controle',
-      h('div', { class: 'row' },
-        ROMAN.slice(0, EDITABLE_ANIMATIONS).map((label, i) => h('button', {
-          class: 'round-btn' + (state.model.activeAnimation === i ? ' selected' : ''),
-          onclick: () => change(() => {
-            if (state.copying && i !== state.model.activeAnimation) {
-              state.model.animations[i] = structuredClone(a);
-            }
-            state.copying = false;
-            state.model.activeAnimation = i;
-            state.frame = 0;
-            state.preset = null;
-          }, { preview: false }),
-        }, label)),
-        button(state.copying ? 'Cancelar' : 'Copiar…', () => { state.copying = !state.copying; render(); })));
+  // Animações favoritas: o controle guarda 4; a escolhida é a que toca.
+  // Cada cartão mostra a sequência de cores: uma coluna por quadro, uma faixa por luz.
+  function animationsSection() {
+    return section('Animações', 'Suas 4 animações favoritas, guardadas no controle. Clique em uma para ativar e editar.',
+      h('div', { class: 'anim-grid' },
+        ROMAN.slice(0, EDITABLE_ANIMATIONS).map((label, i) => {
+          const item = state.model.animations[i];
+          const active = state.model.activeAnimation === i;
+          const frames = Array.from({ length: item.keyFrames }, (_, f) => item.frames[f]);
+          return h('button', {
+            class: 'anim-card' + (active ? ' selected' : ''),
+            'aria-pressed': String(active),
+            onclick: () => {
+              if (active) return;
+              change(() => {
+                state.model.activeAnimation = i;
+                state.frame = 0;
+                state.preset = null;
+              }, { preview: false });
+            },
+          },
+          h('span', { class: 'anim-strip', 'aria-hidden': 'true' },
+            frames.map((leds) => h('span', { class: 'anim-col' },
+              layout.map((light) => h('i', { style: `background:${leds[light.led]}` }))))),
+          h('span', { class: 'anim-meta' },
+            h('span', { class: 'anim-name' }, label),
+            active
+              ? h('span', { class: 'anim-badge' }, 'ativa')
+              : h('span', { class: 'anim-frames muted' }, item.keyFrames === 1 ? '1 quadro' : `${item.keyFrames} quadros`)));
+        })));
   }
 
   function presetsSection(a) {
@@ -230,7 +243,7 @@ export function lightsTab(session, ctx, model) {
   session.readCurrentProfile().then((r) => { profile = r.value; render(); }).catch(() => {});
 
   function profileSection() {
-    return section('Indicador de perfil', 'Perfil N acende N trilhas na luz 4',
+    return section('Indicador de perfil', 'Escolher um número troca o perfil em uso no controle, com o mapeamento dele.',
       h('div', { class: 'row profile-row' },
         PROFILE_SLOTS.map((n) => h('button', {
           class: 'profile-btn' + (profile === n ? ' selected' : ''),

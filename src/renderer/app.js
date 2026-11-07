@@ -6,11 +6,12 @@
 // pelo usuário aparecem no menu.
 
 import { h, clear, button } from './core/dom.js';
-import { HidManager, describe } from './core/hid-manager.js';
+import { HidManager, describe, deviceId } from './core/hid-manager.js';
 import { Extensions } from './core/extensions.js';
 import { plugins } from './frontend/index.js';
 import { batteryLevel } from './shared/battery.js';
-import { LANGUAGES, DEFAULT_LANGUAGE, getLanguage, setLanguage, startTranslating } from './core/i18n.js';
+import { LANGUAGES, DEFAULT_LANGUAGE, getLanguage, setLanguage, startTranslating, translate } from './core/i18n.js';
+import { checkForUpdates, mountUpdateBanner, updateSettingsRows } from './shared/updates.js';
 
 const STATUS_LABEL = { beta: 'beta', planned: 'em breve', tool: 'ferramenta' };
 
@@ -76,7 +77,35 @@ function overviewIcon() {
   return svg;
 }
 
+// Menu da bandeja: a bateria de cada aparelho conectado que informa bateria,
+// no idioma escolhido. O id junta o plugin e o aparelho, para abrir direto nele.
+let trayBatteriesSent = '';
+function syncTrayBatteries() {
+  const items = installedPlugins().flatMap((plugin) => {
+    const handle = mounted.get(plugin.id)?.handle || (devicesFor(plugin).length ? ensureMounted(plugin).handle : null);
+    if (!handle?.cards) return [];
+    return handle.cards()
+      .filter((c) => c.battery && Number.isFinite(c.battery.percent))
+      .map((c) => ({
+        id: `${plugin.id}|${c.id ?? ''}`,
+        label: `${c.name} · ${c.battery.percent}%` + (c.battery.charging ? ` (${translate('carregando')})` : ''),
+      }));
+  });
+  const json = JSON.stringify(items);
+  if (json === trayBatteriesSent) return;
+  trayBatteriesSent = json;
+  window.unihub?.setTrayBatteries?.(items);
+}
+window.unihub?.onOpenDevice?.((key) => {
+  const cut = key.indexOf('|');
+  const pluginId = key.slice(0, cut);
+  const cardId = key.slice(cut + 1);
+  show(pluginId);
+  if (cardId) mounted.get(pluginId)?.handle.focus?.(cardId);
+});
+
 function renderTabs() {
+  syncTrayBatteries();
   // Abas só com o nome: os aparelhos conectados aparecem no Início.
   // Com o menu na barra lateral, cada aba tem um ícone: o desenho do plugin
   // (`icon()`) ou, sem ele, a primeira letra do nome.
@@ -119,14 +148,59 @@ function fitMenuWidth() {
   document.body.style.setProperty('--menu-open-w', `${width}px`);
 }
 
-function scanButton() {
-  return h('button', {
-    class: 'link-btn',
-    onclick: () => {
-      const filters = plugins.flatMap((p) => p.filters || []);
-      hid.request(filters).catch((err) => toast(err.message, 'error'));
-    },
-  }, 'Procurar dispositivos');
+// Procura: "procurando" fica pelo menos um instante na tela, e depois diz o que
+// mudou. O estado fica fora da tela porque o Início é redesenhado ao achar algo.
+const SCAN_MIN_MS = 900;
+const SCAN_RESULT_MS = 8000;
+let scan = { phase: 'idle', text: '' };
+let scanTimer = 0;
+
+function redrawOverview() {
+  if (active === 'overview') renderOverview(overviewEl);
+}
+
+async function runScan() {
+  if (scan.phase === 'scanning') return;
+  clearTimeout(scanTimer);
+  scan = { phase: 'scanning', text: '' };
+  redrawOverview();
+  const before = new Set(hid.devices.map(deviceId));
+  const filters = plugins.flatMap((p) => p.filters || []);
+  const started = Date.now();
+  try {
+    await hid.request(filters);
+    await hid.refresh();
+    await new Promise((r) => setTimeout(r, Math.max(0, SCAN_MIN_MS - (Date.now() - started))));
+    const names = [...new Set(hid.devices.filter((d) => !before.has(deviceId(d))).map((d) => d.productName || 'Aparelho sem nome'))];
+    scan = names.length
+      ? { phase: 'found', text: names.length === 1 ? `Encontrado: ${names[0]}.` : `Encontrados: ${names.join(', ')}.` }
+      : { phase: 'none', text: 'Nenhum aparelho novo. Confira o cabo, o dongle ou o Bluetooth e tente de novo.' };
+  } catch (err) {
+    scan = { phase: 'error', text: `Não foi possível procurar: ${err.message}` };
+  }
+  redrawOverview();
+  scanTimer = setTimeout(() => { scan = { phase: 'idle', text: '' }; redrawOverview(); }, SCAN_RESULT_MS);
+}
+
+function scanButton(label = 'Procurar dispositivos') {
+  return h('button', { class: 'link-btn', onclick: runScan }, label);
+}
+
+/** Linha de procurar no fim do Início: convite, "procurando…" ou o resultado. */
+function scanLine(nothingFound) {
+  if (scan.phase === 'scanning') {
+    return h('p', { class: 'muted small scan-hint scanning', role: 'status' },
+      h('span', { class: 'scan-spinner', 'aria-hidden': 'true' }), 'Procurando aparelhos…');
+  }
+  if (scan.phase !== 'idle') {
+    return h('p', { class: `small scan-hint scan-${scan.phase}`, role: 'status' },
+      h('span', { class: 'scan-icon', 'aria-hidden': 'true' }, scan.phase === 'found' ? '✓' : scan.phase === 'none' ? '○' : '!'),
+      h('span', {}, scan.text),
+      scan.phase === 'found' ? null : scanButton('Procurar de novo'));
+  }
+  return h('p', { class: 'muted small scan-hint' },
+    nothingFound ? 'Nenhum aparelho encontrado. Conecte um periférico ou ' : 'Algum aparelho não apareceu? ',
+    scanButton(), '.');
 }
 
 function renderOverview(container) {
@@ -146,9 +220,7 @@ function renderOverview(container) {
         : h('p', { class: 'muted small' }, 'Aba em breve.'))))) : null;
 
   // Algum aparelho não apareceu sozinho? Só então o botão de procurar ganha destaque.
-  const scanHint = h('p', { class: 'muted small scan-hint' },
-    nothingFound ? 'Nenhum aparelho encontrado. Conecte um periférico ou ' : 'Algum aparelho não apareceu? ',
-    scanButton(), '.');
+  const scanHint = scanLine(nothingFound);
 
   if (firstRun) {
     clear(container,
@@ -382,7 +454,7 @@ function renderSettings(settings) {
           settings.autoStart ? h('label', { class: 'setting-row sub-setting' },
             h('span', { class: 'setting-text' },
               h('span', {}, 'Mostrar na bandeja do sistema'),
-              h('small', { class: 'muted' }, 'Ao ligar o computador, o UniHub começa só com um ícone perto do relógio. Fechar a janela só a esconde: o app continua rodando e os avisos de bateria continuam chegando. Para sair, clique com o botão direito no ícone e escolha Sair.')),
+              h('small', { class: 'muted' }, 'O UniHub fica só como ícone perto do relógio, inclusive ao fechar a janela. Para sair, clique com o botão direito no ícone.')),
             settingToggle('tray', settings, redraw)) : null),
         settingsGroup('Posição do menu',
           h('div', { class: 'segmented', role: 'group', 'aria-label': 'Posição do menu' },
@@ -404,14 +476,22 @@ function renderSettings(settings) {
             }))),
         settingsGroup('Idiomas',
           h('div', { class: 'segmented', role: 'group', 'aria-label': 'Idiomas' },
-            LANGUAGES.map(({ id, name }) => h('button', {
-              class: 'btn' + (getLanguage() === id ? ' primary' : ' secondary'),
-              'aria-pressed': String(getLanguage() === id),
-              onclick: async () => {
-                applyLanguage(await saveSetting('language', id) || { language: id });
-                redraw(await window.unihub?.getSettings?.() || settings);
-              },
-            }, name)))))),
+            // "Automático" segue o idioma do Windows; os outros fixam um idioma.
+            [{ id: 'auto', name: 'Automático' }, ...LANGUAGES].map(({ id, name }) => {
+              const chosen = (settings.language || DEFAULT_LANGUAGE) === id;
+              return h('button', {
+                class: 'btn' + (chosen ? ' primary' : ' secondary'),
+                'aria-pressed': String(chosen),
+                onclick: async () => {
+                  applyLanguage(await saveSetting('language', id) || { ...settings, language: id });
+                  redraw(await window.unihub?.getSettings?.() || settings);
+                },
+              }, name);
+            })),
+          settings.language === 'auto'
+            ? h('small', { class: 'muted settings-note' }, `Seguindo o idioma do Windows: ${languageName(settings.systemLanguage)}.`)
+            : null),
+        settingsGroup('Atualizações', updateSettingsRows()))),
     h('div', { class: 'settings-foot' },
       button('Fechar', () => settingsDialog.close())));
 }
@@ -421,8 +501,13 @@ function renderSettings(settings) {
 const pinBtn = document.getElementById('pin-btn');
 let layout = { menuPosition: 'top', menuPinned: true };
 
+const languageName = (id) => LANGUAGES.find((l) => l.id === id)?.name || 'English';
+
 function applyLanguage(settings) {
-  setLanguage(settings.language || DEFAULT_LANGUAGE);
+  // No automático, usa o idioma que o Windows indica (sem ele, inglês).
+  const language = settings.language === 'auto' ? (settings.systemLanguage || 'en') : settings.language;
+  setLanguage(language || DEFAULT_LANGUAGE);
+  syncTrayBatteries();
   fitMenuWidth(); // os nomes das abas mudam de tamanho
   return settings;
 }
@@ -496,6 +581,7 @@ const THEMES = [
   { id: 'light', label: 'Claro', swatch: ['#e7e5e0', '#d0cdc6'] },
   { id: 'dark', label: 'Escuro', swatch: ['#141518', '#020203'] },
   { id: 'graphite', label: 'Grafite', swatch: ['#242830', '#0f1114'] },
+  { id: 'plum', label: 'Ameixa', swatch: ['#efe4a0', '#320b35'] },
 ];
 const themeBtn = document.getElementById('theme-btn');
 const themeMenu = document.getElementById('theme-menu');
@@ -559,3 +645,7 @@ document.getElementById('settings-btn').addEventListener('click', openSettings);
 
 show('overview');
 hid.start().catch((err) => toast(`Erro ao listar dispositivos: ${err.message}`, 'error'));
+
+// Versão nova (0.x portátil): procura uma vez, depois que o app abriu.
+mountUpdateBanner(document.body);
+setTimeout(() => checkForUpdates().catch(() => {}), 3000);

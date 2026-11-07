@@ -1,0 +1,4 @@
+LIBRARY UniHubAudioMix
+EXPORTS
+  DllGetClassObject PRIVATE
+  DllCanUnloadNow PRIVATE

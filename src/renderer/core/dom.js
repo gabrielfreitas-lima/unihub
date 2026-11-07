@@ -47,7 +47,8 @@ export function subTabs(items) {
         class: 'subtab',
         role: 'tab',
         dataset: { id: item.id },
-        onclick: () => select(item),
+        // Clicar na sub-aba que já está aberta não recarrega a tela.
+        onclick: () => { if (item !== active) select(item); },
       }, item.label, item.disabled ? h('span', { class: 'pill muted' }, 'em breve') : null),
     );
   }

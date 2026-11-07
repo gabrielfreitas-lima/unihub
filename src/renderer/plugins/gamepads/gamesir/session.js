@@ -7,7 +7,7 @@ import {
   commands, classify, readBlockPackets, writeBlockPackets, parseFirmwareVersion, parseCurrentProfile,
   hasPhysicalInput, parseBattery, isBlockReply, blockReplyData, isWriteAck, PROFILE_SIZE, PROFILE_SLOTS, REPORT_RATE_OFFSET, Cmd,
 } from './protocol.js';
-import { BUTTONS, PADDLES, KEYS_OFFSET, KEY_SIZE } from './mapping.js';
+import { BUTTONS, EXTRA_KEYS, KEYS_OFFSET, KEY_SIZE } from './mapping.js';
 
 const HEARTBEAT_MS = 1000;
 const LOG_LIMIT = 300;
@@ -150,10 +150,10 @@ export class GameSirSession extends EventTarget {
     await this.writeBlock(slot, bytes.subarray(start, end + 1), KEYS_OFFSET + start);
   }
 
-  /** Os 7 bytes de cada paddle de um perfil, na ordem de PADDLES. */
+  /** Os 7 bytes de cada paddle e gatilho de um perfil, na ordem de EXTRA_KEYS. */
   async readPaddles(slot) {
     const out = [];
-    for (const paddle of PADDLES) out.push(await this.readBlock(slot, KEY_SIZE, paddle.offset));
+    for (const paddle of EXTRA_KEYS) out.push(await this.readBlock(slot, KEY_SIZE, paddle.offset));
     return out;
   }
 
@@ -193,12 +193,15 @@ export class GameSirSession extends EventTarget {
   /**
    * Lê os blocos de um perfil e devolve as respostas brutas. O formato das
    * respostas varia por modelo, então o backup guarda tudo como veio.
+   * onProgress recebe a fração já lida (0 a 1) a cada bloco.
    */
-  async backupProfile(slot, length = PROFILE_SIZE) {
+  async backupProfile(slot, length = PROFILE_SIZE, onProgress = null) {
     const responses = [];
-    for (const pkt of readBlockPackets(slot, 0, length)) {
+    const packets = readBlockPackets(slot, 0, length);
+    for (const pkt of packets) {
       const report = await this.request(pkt);
       responses.push(Array.from(report));
+      onProgress?.(responses.length / packets.length);
     }
     return {
       format: 'unihub.gamesir.raw-profile.v1',

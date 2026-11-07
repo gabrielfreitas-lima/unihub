@@ -13,6 +13,7 @@ UniHub já conhece (GameSir, MCHOSE, Logitech…).
 | Gamepads | beta | todos os controles de jogo conectados, com teste de botões visual e informações. **Controles GameSir** (testado com Cyclone 2) ganham também: **editor de luzes** (animações, predefinições, quadros-chave, cores, brilho, velocidade, áudio, despertar, suspensão, indicador de perfil), vibração com animação, **mapeamento de botões** por perfil, taxa de relatório, bateria com aviso, backup de perfis, firmware |
 | Headsets | beta | fones e headsets de **qualquer marca**, pelo dongle, cabo USB ou Bluetooth: **Configurações de áudio** (teste de som esquerdo/direito, retorno do microfone, atalho para o som do Windows; funcionam no fone que é a saída de som padrão do Windows), informações do aparelho e, **por Bluetooth, a bateria** (lida do Windows, com aviso de bateria baixa). **Headsets Logitech** (HID++, **não testado com hardware**) ganham nome e bateria. **Headsets MCHOSE** (testado com V9 PRO) ganham também, pelo dongle, bateria com estado de carga e versão do firmware. Equalizador e surround ainda não (dependem do driver de áudio do fabricante) |
 | Teclados | beta | teclados de **qualquer marca**, com fio, pelo dongle, por **Bluetooth** (com o nome do aparelho) e o **teclado do notebook** (PS/2 ou interno, pela lista do Windows; testados só com exemplos): informações do aparelho (fabricante pelo VID, VID:PID) e **teste de teclas** visual (teclado padrão no layout do sistema, ou o desenho do modelo nas marcas conhecidas; teclas testadas, quantas teclas juntas). O teste usa as teclas que o Windows recebe, de qualquer teclado. **Teclados AULA série F** (testado com F75) são reconhecidos no cabo e pelo dongle 2.4G, com o modelo escolhido pelo usuário, o desenho de cada modelo no teste (F75, F87 e F99), a aba **Luzes** (efeito, brilho, velocidade e 7 cores por efeito) e, pelo dongle, a **bateria** com aviso de bateria baixa. Macros e troca de teclas ainda não |
+| Sons | beta | guarda áudios e toca cada um no fone, no microfone ou nos dois, com volume separado para cada um. Para quem está na chamada ouvir: pelo **efeito no microfone** (efeito de áudio do UniHub, instalado pela própria aba com permissão de administrador; funciona nos apps que deixam os efeitos do microfone ligados, como o Gravador de Som, e pode não funcionar no Discord) ou por um **cabo de áudio virtual** (ex.: VB-CABLE), com a opção de misturar a sua voz |
 | Dispositivos HID | ferramenta | lista todas as interfaces HID, para começar um novo hub |
 
 As abas só aparecem depois que você as ativa em **Configurações › Adicionar aba**
@@ -36,18 +37,24 @@ npm install
 npm start
 ```
 
-Testes do protocolo (não precisam de hardware):
+O efeito no microfone da aba Sons precisa ser compilado uma vez (Visual Studio
+Build Tools com C++ e o SDK do Windows):
 
 ```bash
-npm test
+native\audio-mix\compilar.cmd
 ```
+
+As versões 0.x portáteis avisam quando há uma versão nova nas releases do GitHub e
+se atualizam pelo próprio app (**Configurações › Atualizações**).
 
 Feche outros apps que usem o mesmo aparelho antes de usar a aba correspondente: dois
 apps disputando o mesmo dispositivo HID causam falhas de leitura.
 
 ## Arquitetura
 
-- **Electron**, sem módulos nativos e sem DLLs.
+- **Electron**. Por padrão, sem módulos nativos e sem DLLs: tudo o que dá para
+  fazer com APIs da web e do Electron é feito assim. Veja a exceção em
+  [Código nativo](#código-nativo).
 - O processo principal (`src/main/main.cjs`) só cria a janela e libera o
   acesso HID para a página local.
 - A página (`src/renderer/`) usa APIs padrão:
@@ -60,6 +67,25 @@ apps disputando o mesmo dispositivo HID causam falhas de leitura.
 - `frontend/<tipo>/`: a tela, uma aba por tipo de aparelho.
 
 Para adicionar um fabricante: [docs/como-adicionar-um-hub.md](docs/como-adicionar-um-hub.md).
+
+## Código nativo
+
+Uma DLL própria só entra quando o recurso não tem como ser feito com APIs da
+web e do Electron (exemplo: somar sons ao microfone dentro do Windows). Nesse caso:
+
+- **Pelo caminho que o Windows já oferece.** O componente é carregado por um
+  mecanismo de extensão do próprio Windows, como os efeitos de áudio (APO) que o
+  serviço de áudio carrega no microfone. Sem driver de kernel.
+- **Sem desligar proteções.** Nada de modo de teste, desligar a verificação de
+  assinatura ou a proteção do processo de áudio. Se o Windows recusar o
+  componente, o recurso fica indisponível em vez de forçar.
+- **Código próprio.** Escrito a partir da documentação e dos exemplos públicos
+  da Microsoft, nunca copiado de apps de fabricantes.
+- **Instalação reversível.** Quem instala é a pessoa, como administrador, e
+  sabendo o que muda. A instalação guarda um backup do que alterou e há sempre
+  um jeito de remover tudo e voltar ao estado anterior.
+- **Pequeno e isolado.** A DLL faz só a parte que o app não consegue; o resto
+  continua no app. Se a DLL não estiver instalada, o app funciona sem o recurso.
 
 ## Limitações conhecidas
 

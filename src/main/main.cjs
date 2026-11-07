@@ -2,13 +2,15 @@
 //
 // Ele só cria a janela e libera o acesso WebHID (e o microfone, para o
 // retorno de voz). Toda a conversa com os dispositivos acontece no renderer,
-// com APIs padrão da web (WebHID, Gamepad API e Web Audio), então o app não
-// precisa de módulos nativos nem de DLLs.
+// com APIs padrão da web (WebHID, Gamepad API e Web Audio), sem módulos
+// nativos. DLL própria só para o que a web não alcança; ver "Código nativo" no README.
 
-const { app, BrowserWindow, Menu, Tray, nativeImage, screen, session, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, Tray, dialog, nativeImage, nativeTheme, screen, session, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFile } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
+const crypto = require('node:crypto');
+const updates = require('./updates.cjs');
 
 // Controles: o Chromium lê pelo Windows.Gaming.Input, que às vezes não entrega
 // o controle (visto com um GameSir Cyclone 2 no modo Xbox e o Steam aberto),
@@ -64,7 +66,7 @@ function setupHidPermissions() {
 // menuPinned: com o menu à esquerda, fica aberto (true) ou recolhido (false);
 // theme: cores do app (botão Temas).
 const DEFAULT_SETTINGS = { autoStart: false, tray: false, menuPosition: 'top', menuPinned: true, theme: 'graphite', language: 'pt' };
-const ALLOWED_VALUES = { menuPosition: ['top', 'left'], theme: ['light', 'dark', 'graphite'], language: ['pt', 'en', 'es'] };
+const ALLOWED_VALUES = { menuPosition: ['top', 'left'], theme: ['light', 'dark', 'graphite', 'plum'], language: ['auto', 'pt', 'en', 'es'] };
 
 // Cores da janela em cada tema (as mesmas do styles.css): fundo ao abrir e a
 // faixa dos botões minimizar/maximizar/fechar, que o Windows desenha.
@@ -72,6 +74,7 @@ const THEME_COLORS = {
   graphite: { bg: '#14161a', bar: '#1c1f25', symbol: '#e7e9ee' },
   dark: { bg: '#050506', bar: '#0c0d0f', symbol: '#ececef' },
   light: { bg: '#dcdad4', bar: '#e7e5e0', symbol: '#1b1f27' },
+  plum: { bg: '#250827', bar: '#320b35', symbol: '#f2edc4' },
 };
 // Faixa dos botões da janela: 1 px menor que o cabeçalho (52 px), para não
 // cobrir a linha de baixo dele, que assim vai até a borda direita.
@@ -79,6 +82,8 @@ const TITLE_BAR_HEIGHT = 51;
 const themeColors = () => THEME_COLORS[settings.theme] || THEME_COLORS.graphite;
 
 function applyTheme() {
+  // Menus do Windows (o do ícone da bandeja) claros ou escuros, como o tema.
+  nativeTheme.themeSource = settings.theme === 'light' ? 'light' : 'dark';
   if (!mainWindow) return;
   const c = themeColors();
   mainWindow.setBackgroundColor(c.bg);
@@ -103,6 +108,9 @@ let mainWindow = null;
 
 let tray = null;
 let quitting = false;
+// Baterias dos aparelhos conectados ([{ id, label }], texto já no idioma do app),
+// mostradas no menu da bandeja; clicar abre o aparelho na janela.
+let trayBatteries = [];
 
 function showWindow() {
   if (!mainWindow) return createWindow();
@@ -111,6 +119,24 @@ function showWindow() {
   mainWindow.focus();
 }
 
+// Idioma do Windows, para a opção "Automático": o primeiro da lista de preferências
+// que o app tem; sem nenhum deles, inglês.
+const APP_LANGUAGES = ['pt', 'en', 'es'];
+function systemLanguage() {
+  const tags = app.getPreferredSystemLanguages?.() || [];
+  for (const tag of [...tags, app.getLocale()]) {
+    const id = String(tag).slice(0, 2).toLowerCase();
+    if (APP_LANGUAGES.includes(id)) return id;
+  }
+  return 'en';
+}
+
+/** Idioma em uso: o escolhido ou, no automático, o do Windows. */
+const activeLanguage = () => (settings.language === 'auto' ? systemLanguage() : settings.language);
+
+/** O que a página recebe: as configurações e o idioma que o Windows indica. */
+const settingsForPage = () => ({ ...settings, systemLanguage: systemLanguage() });
+
 // Textos do menu da bandeja, que fica fora da página.
 const TRAY_TEXT = {
   pt: { open: 'Abrir o UniHub', quit: 'Sair' },
@@ -118,10 +144,22 @@ const TRAY_TEXT = {
   es: { open: 'Abrir UniHub', quit: 'Salir' },
 };
 
+/** Mostra a janela já no aparelho escolhido (esperando a página carregar, se preciso). */
+function openDevice(id) {
+  showWindow();
+  const page = mainWindow?.webContents;
+  if (!page) return;
+  const send = () => page.send('open-device', id);
+  if (page.isLoading()) page.once('did-finish-load', send);
+  else send();
+}
+
 function applyTrayMenu() {
-  const text = TRAY_TEXT[settings.language] || TRAY_TEXT.pt;
+  const text = TRAY_TEXT[activeLanguage()] || TRAY_TEXT.pt;
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: text.open, click: showWindow },
+    ...(trayBatteries.length ? [{ type: 'separator' }] : []),
+    ...trayBatteries.map((item) => ({ label: item.label, click: () => openDevice(item.id) })),
     { type: 'separator' },
     { label: text.quit, click: () => { quitting = true; app.quit(); } },
   ]));
@@ -152,11 +190,11 @@ function applyAutoStart(enabled) {
   app.setLoginItemSettings({ ...loginItem(), openAtLogin: enabled });
 }
 
-ipcMain.handle('settings:get', () => settings);
+ipcMain.handle('settings:get', () => settingsForPage());
 ipcMain.handle('settings:set', (_event, key, value) => {
   // Só chaves conhecidas, com o tipo certo.
-  if (!(key in DEFAULT_SETTINGS) || typeof value !== typeof DEFAULT_SETTINGS[key]) return settings;
-  if (ALLOWED_VALUES[key] && !ALLOWED_VALUES[key].includes(value)) return settings;
+  if (!(key in DEFAULT_SETTINGS) || typeof value !== typeof DEFAULT_SETTINGS[key]) return settingsForPage();
+  if (ALLOWED_VALUES[key] && !ALLOWED_VALUES[key].includes(value)) return settingsForPage();
   settings = { ...settings, [key]: value };
   if (key === 'autoStart') {
     applyAutoStart(value);
@@ -173,7 +211,7 @@ ipcMain.handle('settings:set', (_event, key, value) => {
     fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
     fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2));
   } catch { /* sem gravar: vale só até fechar o app */ }
-  return settings;
+  return settingsForPage();
 });
 
 // Tamanho inicial: cabem duas linhas de cartões quadrados no Início, sem rolar.
@@ -227,7 +265,297 @@ function createWindow({ hidden = false } = {}) {
 }
 
 // Atalho para as configurações de som do Windows (aba de áudio dos headsets).
+// A página avisa as baterias lidas; o menu e a dica do ícone da bandeja acompanham.
+ipcMain.on('tray-batteries', (_event, items) => {
+  if (!Array.isArray(items)) return;
+  trayBatteries = items
+    .filter((t) => t && typeof t.id === 'string' && typeof t.label === 'string')
+    .slice(0, 20)
+    .map((t) => ({ id: t.id.slice(0, 120), label: t.label.slice(0, 80) }));
+  applyTrayMenu();
+  tray?.setToolTip(['UniHub', ...trayBatteries.map((t) => t.label)].join('\n').slice(0, 127));
+});
+
 ipcMain.handle('open-sound-settings', () => shell.openExternal('ms-settings:sound'));
+
+// --- Sons (aba Sons) ------------------------------------------------------------
+// Os áudios que a pessoa adiciona são copiados para uma pasta do app, então
+// continuam tocando mesmo se o arquivo original mudar de lugar. A página só
+// recebe o nome e os bytes; nenhum caminho do disco passa para ela.
+
+const SOUND_EXTENSIONS = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'webm'];
+const SOUND_MAX_BYTES = 50 * 1024 * 1024;
+const soundsDir = () => path.join(app.getPath('userData'), 'sons');
+
+function listSounds() {
+  try {
+    return fs.readdirSync(soundsDir(), { withFileTypes: true })
+      .filter((e) => e.isFile() && SOUND_EXTENSIONS.includes(path.extname(e.name).slice(1).toLowerCase()))
+      .map((e) => ({ id: e.name, name: path.parse(e.name).name }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  } catch {
+    return [];
+  }
+}
+
+/** Caminho de um som da pasta, só pelo nome do arquivo (nada de ../). */
+function soundPath(id) {
+  if (typeof id !== 'string' || id !== path.basename(id)) return null;
+  const file = path.join(soundsDir(), id);
+  return listSounds().some((s) => s.id === id) ? file : null;
+}
+
+function freeName(base, ext) {
+  for (let n = 1; ; n++) {
+    const name = n === 1 ? `${base}${ext}` : `${base} (${n})${ext}`;
+    if (!fs.existsSync(path.join(soundsDir(), name))) return name;
+  }
+}
+
+ipcMain.handle('sounds:list', () => listSounds());
+
+ipcMain.handle('sounds:add', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Adicionar sons',
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Áudio', extensions: SOUND_EXTENSIONS }],
+  });
+  const skipped = [];
+  if (!result.canceled) {
+    fs.mkdirSync(soundsDir(), { recursive: true });
+    for (const file of result.filePaths) {
+      const ext = path.extname(file).toLowerCase();
+      const size = fs.statSync(file).size;
+      if (!SOUND_EXTENSIONS.includes(ext.slice(1)) || size > SOUND_MAX_BYTES) {
+        skipped.push(path.basename(file));
+        continue;
+      }
+      fs.copyFileSync(file, path.join(soundsDir(), freeName(path.parse(file).name, ext)));
+    }
+  }
+  return { sounds: listSounds(), skipped };
+});
+
+ipcMain.handle('sounds:read', (_event, id) => {
+  const file = soundPath(id);
+  return file ? fs.promises.readFile(file) : null;
+});
+
+// Apaga só a cópia guardada pelo app; o arquivo original da pessoa fica onde estava.
+ipcMain.handle('sounds:remove', (_event, id) => {
+  const file = soundPath(id);
+  if (file) fs.rmSync(file, { force: true });
+  return listSounds();
+});
+
+// --- Efeito no microfone (aba Sons) -----------------------------------------------
+// Única parte com código nativo, pela regra "Código nativo" do README: o Windows
+// só deixa somar som ao microfone por dentro do serviço de áudio. A DLL e a ponte
+// ficam em native/audio-mix (compiladas por compilar.cmd); quem instala é a
+// pessoa, pelo pedido de administrador do Windows. Sem elas, a aba usa o cabo virtual.
+
+const AUDIO_MIX_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'native', 'audio-mix')
+  : path.join(__dirname, '..', '..', 'native', 'audio-mix');
+const AUDIO_MIX_DLL = path.join(AUDIO_MIX_DIR, 'build', 'UniHubAudioMix.dll');
+const AUDIO_MIX_BRIDGE = path.join(AUDIO_MIX_DIR, 'build', 'ponte.exe');
+const AUDIO_MIX_CLSID = '{6B1F3C2A-8E4D-4F7B-9A15-3C2D7E9F0A41}';
+const MIC_ID = /^\{[0-9a-fA-F-]{36}\}$/;
+const MIC_EFFECT_MAX_SAMPLES = 48000 * 60 * 5; // 5 minutos
+
+// Microfones ativos e se o efeito está na lista de efeitos de cada um. Só leitura.
+const MIC_EFFECT_SCRIPT = [
+  "$base = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Capture'",
+  '$r = Get-ChildItem $base | Where-Object { (Get-ItemProperty $_.PSPath).DeviceState -eq 1 } | ForEach-Object {',
+  '  $p = Get-ItemProperty "$($_.PSPath)\\Properties" -ErrorAction SilentlyContinue',
+  '  $fx = Get-Item "$($_.PSPath)\\FxProperties" -ErrorAction SilentlyContinue',
+  "  $l = if ($fx) { @($fx.GetValue('{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},13')) -join '' } else { '' }",
+  "  [pscustomobject]@{ id = $_.PSChildName; name = $p.'{a45c254e-df1c-4efd-8020-67d146a850e0},2';",
+  "    device = $p.'{b3f8fa53-0004-438e-9003-51a46e139bfc},6'; installed = ($l -like '*" + AUDIO_MIX_CLSID + "*') }",
+  '}',
+  'ConvertTo-Json @($r) -Compress',
+].join('\n');
+
+function runBridge(args, input = null) {
+  return new Promise((resolve) => {
+    const child = execFile(AUDIO_MIX_BRIDGE, args, { windowsHide: true, encoding: 'utf8', maxBuffer: 1 << 16 }, (err, stdout) => {
+      let result = {};
+      try { result = JSON.parse(stdout.trim() || '{}'); } catch { /* sem resposta */ }
+      resolve({ code: err ? err.code ?? 1 : 0, ...result });
+    });
+    // A ponte pode sair antes de ler tudo (ex.: fechada no "Parar"): sem isto,
+    // o erro de escrita derruba o processo principal.
+    child.stdin.on('error', () => {});
+    if (input) child.stdin.end(input); else child.stdin.end();
+    runBridge.current = input ? child : runBridge.current;
+  });
+}
+
+ipcMain.handle('mic-effect:status', () => new Promise((resolve) => {
+  const built = fs.existsSync(AUDIO_MIX_DLL) && fs.existsSync(AUDIO_MIX_BRIDGE);
+  if (process.platform !== 'win32') return resolve({ built: false, mics: [], active: false });
+  execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', MIC_EFFECT_SCRIPT],
+    { timeout: 15_000, windowsHide: true }, async (err, stdout) => {
+      let mics = [];
+      try {
+        const list = JSON.parse(stdout.trim() || '[]');
+        mics = (Array.isArray(list) ? list : [list])
+          .filter((m) => m && MIC_ID.test(m.id))
+          .map((m) => ({ id: m.id, name: String(m.name || ''), device: String(m.device || ''), installed: !!m.installed }));
+      } catch { /* sem lista */ }
+      const active = built ? (await runBridge(['--estado'])).code === 0 : false;
+      resolve({ built, mics, active });
+    });
+}));
+
+// Roda instalar.ps1 ou remover.ps1 como administrador (o Windows pede a permissão).
+// Devolve { ok, message }: 1223 = a pessoa recusou o pedido de administrador.
+// params: { Nome: valor } vira -Nome 'valor' (o nome sem aspas, senão vira posicional).
+function runElevated(script, params) {
+  const log = path.join(app.getPath('temp'), `unihub-audio-mix-${Date.now()}.log`);
+  const q = (s) => String(s).replaceAll("'", "''");
+  const args = Object.entries(params).map(([name, value]) => `-${name} '${q(value)}'`).join(' ');
+  const inner = `try { & '${q(script)}' ${args} *> '${q(log)}' } `
+    + `catch { $_ | Out-File -Encoding utf8 '${q(log)}'; exit 1 }; exit 0`;
+  const encoded = Buffer.from(inner, 'utf16le').toString('base64');
+  const outer = 'try { $p = Start-Process powershell.exe -Verb RunAs -Wait -PassThru -WindowStyle Hidden '
+    + `-ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','${encoded}'); exit $p.ExitCode } catch { exit 1223 }`;
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', outer], { windowsHide: true }, (err) => {
+      const code = err ? err.code ?? 1 : 0;
+      let message = '';
+      try {
+        // O *> do PowerShell 5 grava em UTF-16; o Out-File do catch, em UTF-8.
+        const bytes = fs.readFileSync(log);
+        const utf16 = bytes[0] === 0xff && bytes[1] === 0xfe;
+        message = bytes.toString(utf16 ? 'utf16le' : 'utf8').replace(/^﻿/, '').trim();
+        fs.rmSync(log, { force: true });
+      } catch { /* sem log */ }
+      resolve({ ok: code === 0, cancelled: code === 1223, message: message.slice(0, 600) });
+    });
+  });
+}
+
+ipcMain.handle('mic-effect:install', (_event, micId) => {
+  if (!MIC_ID.test(micId || '')) return { ok: false, message: 'Microfone inválido.' };
+  if (!fs.existsSync(AUDIO_MIX_DLL)) return { ok: false, message: 'Efeito não compilado (native/audio-mix/compilar.cmd).' };
+  return runElevated(path.join(AUDIO_MIX_DIR, 'instalar.ps1'), { Microfone: micId, Dll: AUDIO_MIX_DLL });
+});
+
+ipcMain.handle('mic-effect:remove', () => runElevated(path.join(AUDIO_MIX_DIR, 'remover.ps1'), {}));
+
+// Som já pronto pela página: mono, float 32, 48000 Hz, no volume escolhido.
+ipcMain.handle('mic-effect:play', async (_event, samples) => {
+  if (!(samples instanceof Float32Array) || !samples.length || samples.length > MIC_EFFECT_MAX_SAMPLES) return { code: 2 };
+  if (!fs.existsSync(AUDIO_MIX_BRIDGE)) return { code: 2 };
+  runBridge.current?.kill();
+  return runBridge([], Buffer.from(samples.buffer, samples.byteOffset, samples.byteLength));
+});
+
+ipcMain.handle('mic-effect:stop', () => {
+  runBridge.current?.kill();
+  runBridge.current = null;
+});
+
+// --- Atualizações (versões 0.x portáteis) ------------------------------------------
+// Ver updates.cjs. O exe portátil do electron-builder informa o próprio caminho em
+// PORTABLE_EXECUTABLE_FILE; sem ele (rodando pelo código), só abre a página da release.
+
+const portableExe = () => process.env.PORTABLE_EXECUTABLE_FILE || '';
+let downloadedUpdate = null; // { version, file }
+
+ipcMain.handle('update:check', async () => {
+  const current = app.getVersion();
+  try {
+    const res = await fetch(`https://api.github.com/repos/${updates.REPO}/releases?per_page=20`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'UniHub-updater' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return { current, error: `GitHub respondeu ${res.status}` };
+    const latest = updates.pickLatest(await res.json());
+    const newer = !!latest && updates.compareVersions(latest.version, current) > 0;
+    return {
+      current, latest, newer,
+      canInstall: newer && !!latest.asset && !!portableExe(),
+      downloaded: downloadedUpdate?.version === latest?.version,
+    };
+  } catch (err) {
+    return { current, error: err.name === 'TimeoutError' ? 'sem resposta do GitHub' : 'sem conexão com o GitHub' };
+  }
+});
+
+// Baixa o exe novo para a pasta do exe atual, conferindo tamanho e SHA-256.
+ipcMain.handle('update:download', async (event) => {
+  const exe = portableExe();
+  if (!exe) return { ok: false, message: 'Só a versão portátil se atualiza sozinha.' };
+  const res = await fetch(`https://api.github.com/repos/${updates.REPO}/releases?per_page=20`, {
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'UniHub-updater' },
+  }).catch(() => null);
+  const latest = res?.ok ? updates.pickLatest(await res.json()) : null;
+  if (!latest?.asset || updates.compareVersions(latest.version, app.getVersion()) <= 0) {
+    return { ok: false, message: 'Nenhuma versão nova para baixar.' };
+  }
+  const target = path.join(path.dirname(exe), latest.asset.name);
+  if (path.resolve(target).toLowerCase() === path.resolve(exe).toLowerCase()) {
+    return { ok: false, message: 'O arquivo novo tem o mesmo nome do atual.' };
+  }
+  const part = `${target}.download`;
+  try {
+    const file = await fetch(latest.asset.url, { headers: { 'User-Agent': 'UniHub-updater' } });
+    if (!file.ok || !file.body) throw new Error(`download respondeu ${file.status}`);
+    const total = Number(file.headers.get('content-length')) || latest.asset.size || 0;
+    const hash = crypto.createHash('sha256');
+    const out = fs.createWriteStream(part);
+    let received = 0;
+    let lastSent = 0;
+    for await (const chunk of file.body) {
+      hash.update(chunk);
+      received += chunk.length;
+      if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+      if (Date.now() - lastSent > 150) {
+        lastSent = Date.now();
+        event.sender.send('update:progress', { received, total });
+      }
+    }
+    await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+    if (latest.asset.size && received !== latest.asset.size) throw new Error('arquivo incompleto');
+    const digest = hash.digest('hex');
+    if (latest.asset.sha256 && digest !== latest.asset.sha256) throw new Error('o arquivo baixado não confere (SHA-256)');
+    fs.renameSync(part, target);
+    downloadedUpdate = { version: latest.version, file: target };
+    return { ok: true, version: latest.version, verified: !!latest.asset.sha256 };
+  } catch (err) {
+    fs.rmSync(part, { force: true });
+    return { ok: false, message: `Não foi possível baixar: ${err.message}.` };
+  }
+});
+
+// Fecha o app; um script espera ele sair, apaga o exe antigo e abre o novo.
+ipcMain.handle('update:install', () => {
+  const exe = portableExe();
+  if (!exe || !downloadedUpdate || !fs.existsSync(downloadedUpdate.file)) return { ok: false };
+  const script = path.join(app.getPath('temp'), `unihub-atualizar-${Date.now()}.cmd`);
+  fs.writeFileSync(script, updates.swapScript(exe, downloadedUpdate.file), 'utf8'); // o script troca o console para UTF-8
+  spawn('cmd.exe', ['/c', script], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  quitting = true;
+  app.quit();
+  return { ok: true };
+});
+
+ipcMain.handle('update:open-page', (_event, url) => {
+  // Só páginas de release deste repositório.
+  if (typeof url === 'string' && url.startsWith(`https://github.com/${updates.REPO}/releases`)) shell.openExternal(url);
+});
+
+// Devolve '' quando abre, ou o motivo de não ter aberto.
+ipcMain.handle('sounds:open-folder', async () => {
+  try {
+    fs.mkdirSync(soundsDir(), { recursive: true });
+    return await shell.openPath(soundsDir());
+  } catch (err) {
+    return err.message;
+  }
+});
 
 // Bateria de fones Bluetooth: o Windows guarda o valor que o fone manda pelo
 // perfil de chamada (Hands-Free) numa propriedade do aparelho, mas não a passa
@@ -318,6 +646,7 @@ app.on('before-quit', () => { quitting = true; });
 
 app.whenReady().then(() => {
   settings = loadSettings();
+  applyTheme(); // menus do Windows já na cor do tema
   for (const [key, values] of Object.entries(ALLOWED_VALUES)) {
     if (!values.includes(settings[key])) settings[key] = DEFAULT_SETTINGS[key];
   }

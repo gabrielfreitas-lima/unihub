@@ -123,6 +123,20 @@ Paddles do Cyclone 2, com o mesmo formato de 7 bytes dos botões ✓:
 Confirmado gravando o destino A em L4 e B em R4 no perfil 4: com esse perfil ativo, os
 dois passaram a gerar A e B. Os dados são iguais nos 4 perfis.
 
+Gatilhos do Cyclone 2: cada um tem um bloco de ajustes de 28 bytes (LT em 496, RT em
+524). A entrada de 7 bytes do remapeamento, no mesmo formato dos botões, começa 3 bytes
+depois do início do bloco. Diferente dos paddles, o padrão é **não mapeado**:
+
+| Offset | Botão | Padrão de fábrica |
+|---|---|---|
+| 499 | LT | `00 64 00 00 00 00 00` |
+| 527 | RT | `00 64 00 00 00 00 00` (não confirmado na gravação) |
+
+Confirmado no perfil 1 ✓: com o LT mapeado para A (`00 64 01 09 00 00 00`), apertar o
+LT gera A; voltando o byte 2 e o destino a `0`, o LT volta a ser gatilho. Os outros
+bytes do bloco parecem ser a curva/zona morta do gatilho (não confirmado) e não
+precisam mudar para o remapeamento funcionar.
+
 Cada botão (7 bytes):
 
 | Byte | Campo |

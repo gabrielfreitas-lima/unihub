@@ -11,7 +11,7 @@ export const LANGUAGES = [
   { id: 'es', name: 'Español' },
 ];
 const COLUMN = { en: 0, es: 1 };
-const ATTRIBUTES = ['aria-label', 'title', 'placeholder'];
+const ATTRIBUTES = ['aria-label', 'title', 'placeholder', 'label'];
 
 let language = DEFAULT_LANGUAGE;
 
